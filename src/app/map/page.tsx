@@ -1,4 +1,4 @@
-// map.tsx
+//MAP.TSX
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -255,25 +255,21 @@ const MapOnlyPage: React.FC = () => {
   };
 
   useEffect(() => {
-    let timeout: NodeJS.Timeout;
-    
-    if (activeSearch === "start" && startSearchQuery.trim()) {
-      timeout = setTimeout(() => {
+    const handleSearch = () => {
+      if (activeSearch === "start" && startSearchQuery.trim()) {
         handleAutoSearch(startSearchQuery, "start");
-      }, 1000);
-    } else if (activeSearch === "end" && endSearchQuery.trim()) {
-      timeout = setTimeout(() => {
+      } else if (activeSearch === "end" && endSearchQuery.trim()) {
         handleAutoSearch(endSearchQuery, "end");
-      }, 1000);
-    } else {
-      if (activeSearch === "start") setStartSearchResults([]);
-      else if (activeSearch === "end") setEndSearchResults([]);
-    }
+      } else {
+        if (activeSearch === "start") setStartSearchResults([]);
+        else if (activeSearch === "end") setEndSearchResults([]);
+      }
+    };
+
+    const typingTimeout = setTimeout(handleSearch, 1000);
     
     return () => {
-      if (timeout) {
-        clearTimeout(timeout);
-      }
+      clearTimeout(typingTimeout);
     };
   }, [startSearchQuery, endSearchQuery, activeSearch]);
 
@@ -527,10 +523,7 @@ const MapOnlyPage: React.FC = () => {
     } catch (error) {
       console.error("فشل إرسال الطلب:", error);
       
-      let errorMessage = "حدث خطأ أثناء إرسال الطلب";
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      }
+      const errorMessage = error instanceof Error ? error.message : "حدث خطأ أثناء إرسال الطلب";
 
       toast.error(errorMessage, {
         id: loadingToast,

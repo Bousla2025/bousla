@@ -1,6 +1,5 @@
 // mapcomponent.js
 
-// components/MapComponent.js
 import React, { useEffect } from "react";
 import L from "leaflet";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
