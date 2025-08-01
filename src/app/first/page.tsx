@@ -23,6 +23,24 @@ interface Service {
   pro: number; //حقل ترتيب العرض
 }
 
+interface RawTrip {
+  id?: number;
+  start_text?: string;
+  end_text?: string;
+  cost?: number | null;
+  distance_km?: string;
+  duration_min?: string;
+  status?: string;
+}
+
+interface RawService {
+  id?: number;
+  ser_name?: string;
+  note1?: string;
+  activ?: number;
+  pro?: number;
+}
+
 export default function HomePage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [currentAdIndex, setCurrentAdIndex] = useState(0);
@@ -52,37 +70,36 @@ export default function HomePage() {
 
   // دالة جلب الرحلات
   const fetchTrips = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('https://alrasekhooninlaw.com/bousla/get_order_byuserid.php?user_id=1');
-      if (!response.ok) {
-        throw new Error('فشل في جلب البيانات');
-      }
-      const result = await response.json();
-      
-      // فحص نوع البيانات المستلمة
-      if (!result || !result.success || !Array.isArray(result.data)) {
-        throw new Error('تنسيق البيانات غير صحيح');
-      }
-
-      const formattedTrips = result.data.map((trip: any) => ({
-        id: trip.id || 0,
-        from: trip.start_text || "موقع الانطلاق غير محدد",
-        to: trip.end_text || "موقع الوصول غير محدد",
-        price: trip.cost !== null ? `قيمة الطلب: ${trip.cost} ل.س` : "يتم حساب السعر",
-        distance: trip.distance_km ? `${parseFloat(trip.distance_km).toFixed(1)} كم` : "المسافة غير محددة",
-        time: trip.duration_min ? `${trip.duration_min} دقائق` : "الوقت غير محدد",
-        status: trip.status || "غير معروف"
-      }));
-      
-      setTrips(formattedTrips);
-      setLoading(false);
-    } catch (err: unknown) {
-      setError('حدث خطأ أثناء جلب الرحلات');
-      setLoading(false);
-      console.error('Error fetching trips:', err);
+  try {
+    setLoading(true);
+    const response = await fetch('https://alrasekhooninlaw.com/bousla/get_order_byuserid.php?user_id=1');
+    if (!response.ok) {
+      throw new Error('فشل في جلب البيانات');
     }
-  };
+    const result = await response.json();
+    
+    if (!result || !result.success || !Array.isArray(result.data)) {
+      throw new Error('تنسيق البيانات غير صحيح');
+    }
+
+    const formattedTrips = result.data.map((trip: RawTrip) => ({
+      id: trip.id || 0,
+      from: trip.start_text || "موقع الانطلاق غير محدد",
+      to: trip.end_text || "موقع الوصول غير محدد",
+      price: trip.cost !== null ? `قيمة الطلب: ${trip.cost} ل.س` : "يتم حساب السعر",
+      distance: trip.distance_km ? `${parseFloat(trip.distance_km).toFixed(1)} كم` : "المسافة غير محددة",
+      time: trip.duration_min ? `${trip.duration_min} دقائق` : "الوقت غير محدد",
+      status: trip.status || "غير معروف"
+    }));
+    
+    setTrips(formattedTrips);
+    setLoading(false);
+  } catch (err: unknown) {
+    setError('حدث خطأ أثناء جلب الرحلات');
+    setLoading(false);
+    console.error('Error fetching trips:', err);
+  }
+};
 
   // دالة جلب الخدمات
   const fetchServices = async () => {
@@ -102,13 +119,13 @@ export default function HomePage() {
       }
 
       // تحويل البيانات إلى الشكل المطلوب مع تضمين حقل pro
-      const formattedServices = result.data.map((service: any) => ({
-        id: service.id || 0,
-        ser_name: service.ser_name || "غير محدد",
-        note1: service.note1 || "",
-        activ: service.activ || 0,
-        pro: service.pro || 0 // القيمة الافتراضية 0 إذا لم تكن موجودة
-      }));
+      const formattedServices = result.data.map((service: RawService) => ({
+  id: service.id || 0,
+  ser_name: service.ser_name || "غير محدد",
+  note1: service.note1 || "",
+  activ: service.activ || 0,
+  pro: service.pro || 0
+}));
       
       // ترتيب الخدمات حسب حقل pro (إذا لم يكن الخادم قد قام بالترتيب)
       formattedServices.sort((a: Service, b: Service) => a.pro - b.pro);

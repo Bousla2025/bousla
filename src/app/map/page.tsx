@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import dynamic from "next/dynamic";
+import dynamic from "next/dynamic"; // مطلوب لتحميل المكونات ديناميكيًا
 import Layout from "../components/Layout";
 import { FaMapMarkerAlt, FaFlagCheckered, FaSave, FaLocationArrow, FaArrowRight, FaInfoCircle, FaTimes, FaSpinner, FaChevronDown } from "react-icons/fa";
 import { motion } from "framer-motion";
@@ -438,28 +438,28 @@ const MapOnlyPage: React.FC = () => {
     }
   };
 
-  const getAndroidErrorMessage = (error: unknown): string => {
-    if (error instanceof GeolocationPositionError) {
-      switch(error.code) {
-        case error.PERMISSION_DENIED:
-          return "رفض الإذن - تأكد من تفعيل صلاحيات الموقع";
-        case error.POSITION_UNAVAILABLE:
-          return "خدمة الموقع معطلة - تأكد من تفعيل GPS";
-        case error.TIMEOUT:
-          return "تجاوز الوقت - حاول في مكان مفتوح";
-        default:
-          return "خطأ غير معروف في نظام الموقع";
-      }
+  const getAndroidErrorMessage = (error: GeolocationPositionError | Error | unknown): string => {
+  if (error instanceof GeolocationPositionError) {
+    switch(error.code) {
+      case error.PERMISSION_DENIED:
+        return "رفض الإذن - تأكد من تفعيل صلاحيات الموقع";
+      case error.POSITION_UNAVAILABLE:
+        return "خدمة الموقع معطلة - تأكد من تفعيل GPS";
+      case error.TIMEOUT:
+        return "تجاوز الوقت - حاول في مكان مفتوح";
+      default:
+        return "خطأ غير معروف في نظام الموقع";
     }
-    
-    if (error instanceof Error) {
-      return error.message.includes("تجاوز الوقت") ? 
-        "استغرقت العملية وقتاً طويلاً" : 
-        error.message;
-    }
+  }
+  
+  if (error instanceof Error) {
+    return error.message.includes("تجاوز الوقت") ? 
+      "استغرقت العملية وقتاً طويلاً" : 
+      error.message;
+  }
 
-    return "حدث خطأ غير متوقع";
-  };
+  return "حدث خطأ غير متوقع";
+};
 
   const getShortLocationName = (fullName: string | undefined) => {
     if (!fullName) return '';
