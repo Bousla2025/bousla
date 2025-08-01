@@ -1,10 +1,10 @@
-import dynamic from "next/dynamic";
+// mapcomponent.js
 import React, { useEffect, useState } from "react";
 import L from "leaflet";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
-// إنشاء أيقونات مخصصة
+// Create custom icons
 const createCustomIcon = (color) => {
   const svgIcon = encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" width="24px" height="24px"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/></svg>`
@@ -22,20 +22,7 @@ const startIcon = createCustomIcon('red');
 const endIcon = createCustomIcon('green');
 const defaultIcon = createCustomIcon('blue');
 
-// مكون فرعي للتحكم في تحديث الخريطة
-const MapUpdater = ({ coordinates }) => {
-  const map = useMap();
-
-  useEffect(() => {
-    if (map && coordinates && !isNaN(coordinates[0]) && !isNaN(coordinates[1])) {
-      map.setView(coordinates, 13);
-    }
-  }, [coordinates, map]);
-
-  return null;
-};
-
-// مكون فرعي للتحكم في النقر على الخريطة
+// Sub-component to handle map clicks
 const MapClickHandler = ({ active, onSelect }) => {
   const map = useMap();
   
@@ -56,43 +43,37 @@ const MapClickHandler = ({ active, onSelect }) => {
   return null;
 };
 
-// مكون فرعي للتحكم في تحريك الخريطة لعرض المسار
-const RouteViewer = ({ routes, locations }) => {
+// Sub-component to adjust map view based on routes and locations
+const RouteAndLocationUpdater = ({ routes, locations, initialCoordinates }) => {
   const map = useMap();
-  const [prevRoutes, setPrevRoutes] = useState([]);
 
   useEffect(() => {
-    if (routes.length > 0 && JSON.stringify(routes) !== JSON.stringify(prevRoutes)) {
-      setPrevRoutes(routes);
-      
-      const allPoints = routes.flatMap(route => 
+    const allPoints = [
+      ...routes.flatMap(route => 
         route.coordinates ? route.coordinates.map(coord => [coord[0], coord[1]]) : []
-      );
-      
-      locations.forEach(location => {
-        if (location.lat && location.lon) {
-          allPoints.push([location.lat, location.lon]);
-        }
-      });
+      ),
+      ...locations.filter(loc => loc.lat && loc.lon).map(loc => [loc.lat, loc.lon])
+    ];
 
-      if (allPoints.length > 0) {
-        const bounds = L.latLngBounds(allPoints);
-        
-        setTimeout(() => {
-          map.flyToBounds(bounds, {
-            padding: [50, 50],
-            duration: 2,
-            easeLinearity: 0.25
-          });
-        }, 500);
-      }
+    if (allPoints.length > 0) {
+      const bounds = L.latLngBounds(allPoints);
+      setTimeout(() => {
+        map.flyToBounds(bounds, {
+          padding: [50, 50],
+          duration: 2,
+          easeLinearity: 0.25
+        });
+      }, 500);
+    } else if (initialCoordinates && !isNaN(initialCoordinates[0]) && !isNaN(initialCoordinates[1])) {
+      // If there are no routes or locations, set the view to the initial coordinates
+      map.setView(initialCoordinates, 13);
     }
-  }, [routes, prevRoutes, map, locations]);
+  }, [routes, locations, map, initialCoordinates]);
 
   return null;
 };
 
-// المكون الرئيسي
+// The main component
 const MapComponent = ({ 
   coordinates, 
   routes = [], 
@@ -125,12 +106,11 @@ const MapComponent = ({
       />
 
       <MapClickHandler active={isSelectingOnMap} onSelect={onSelectLocation} />
-      <RouteViewer routes={routes} locations={locations} />
+      <RouteAndLocationUpdater routes={routes} locations={locations} initialCoordinates={validCoordinates} />
 
       {routes.map((route, index) => {
         const { coordinates } = route;
-        
-        if (!coordinates || !Array.isArray(coordinates) || coordinates.length === 0) {
+        if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 2) {
           return null;
         }
 
@@ -171,8 +151,6 @@ const MapComponent = ({
           </Marker>
         );
       })}
-
-      <MapUpdater coordinates={validCoordinates} />
     </MapContainer>
   );
 };

@@ -1,4 +1,5 @@
 //first.tsx
+
 'use client';
 
 import { useState, useEffect, useRef } from "react";
@@ -59,7 +60,8 @@ export default function HomePage() {
       }
       const result = await response.json();
       
-      if (!result.success || !result.data) {
+      // فحص نوع البيانات المستلمة
+      if (!result || !result.success || !Array.isArray(result.data)) {
         throw new Error('تنسيق البيانات غير صحيح');
       }
 
@@ -68,14 +70,14 @@ export default function HomePage() {
         from: trip.start_text || "موقع الانطلاق غير محدد",
         to: trip.end_text || "موقع الوصول غير محدد",
         price: trip.cost !== null ? `قيمة الطلب: ${trip.cost} ل.س` : "يتم حساب السعر",
-        distance: trip.distance_km ? `${trip.distance_km.toFixed(1)} كم` : "المسافة غير محددة",
+        distance: trip.distance_km ? `${parseFloat(trip.distance_km).toFixed(1)} كم` : "المسافة غير محددة",
         time: trip.duration_min ? `${trip.duration_min} دقائق` : "الوقت غير محدد",
         status: trip.status || "غير معروف"
       }));
       
       setTrips(formattedTrips);
       setLoading(false);
-    } catch (err) {
+    } catch (err: unknown) {
       setError('حدث خطأ أثناء جلب الرحلات');
       setLoading(false);
       console.error('Error fetching trips:', err);
@@ -94,16 +96,17 @@ export default function HomePage() {
       
       const result = await response.json();
       
-      if (!result.success) {
+      // فحص نوع البيانات المستلمة
+      if (!result || !result.success || !Array.isArray(result.data)) {
         throw new Error(result.message || 'تنسيق بيانات غير صحيح');
       }
 
       // تحويل البيانات إلى الشكل المطلوب مع تضمين حقل pro
       const formattedServices = result.data.map((service: any) => ({
-        id: service.id,
-        ser_name: service.ser_name,
-        note1: service.note1,
-        activ: service.activ,
+        id: service.id || 0,
+        ser_name: service.ser_name || "غير محدد",
+        note1: service.note1 || "",
+        activ: service.activ || 0,
         pro: service.pro || 0 // القيمة الافتراضية 0 إذا لم تكن موجودة
       }));
       
@@ -125,7 +128,7 @@ export default function HomePage() {
   useEffect(() => {
     fetchTrips();
     fetchServices();
-  }, []);
+  }, []); // [] لضمان تنفيذ الدالة مرة واحدة فقط
 
   // تبديل الإعلانات تلقائياً
   useEffect(() => {
@@ -188,9 +191,9 @@ export default function HomePage() {
 
   // فتح الخريطة في صفحة جديدة
   const handleServiceClick = (serviceId: number) => {
-     // فتح الخريطة في نافذة جديدة داخل التطبيق
+      // فتح الخريطة في نافذة جديدة داخل التطبيق
     const mapUrl = `/map?service_id=${serviceId}&user_id=1`;
-window.location.href = mapUrl;
+    window.location.href = mapUrl;
   };
 
   // بيانات وهمية للخدمات أثناء التحميل

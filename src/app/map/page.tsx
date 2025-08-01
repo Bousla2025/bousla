@@ -1,24 +1,44 @@
-//map.tsx
+// map.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import Layout from "../components/Layout";
-import { FaMapMarkerAlt, FaFlagCheckered, FaSave, FaLocationArrow, FaArrowRight, FaInfoCircle, FaTimes, FaSearch, FaSpinner, FaChevronDown } from "react-icons/fa";
+import {
+  FaMapMarkerAlt,
+  FaFlagCheckered,
+  FaSave,
+  FaLocationArrow,
+  FaArrowRight,
+  FaInfoCircle,
+  FaTimes,
+  FaSearch,
+  FaSpinner,
+  FaChevronDown,
+} from "react-icons/fa";
 import { motion } from "framer-motion";
 import { toast } from "react-hot-toast";
 import GlobeLoader from "../components/GlobeLoader";
-import Link from "next/link";
 
+// تعريف أنواع البيانات
 type Coordinates = [number, number];
 
+// تعديل واجهة MapLocation لإضافة الخصائص الاختيارية isStartPoint و isEndPoint
 interface MapLocation {
   id?: string;
   name: string;
   lat: number;
   lon: number;
+  isStartPoint?: boolean;
+  isEndPoint?: boolean;
 }
 
+// تعديل واجهة Route لتكون متوافقة مع MapComponent
+interface Route {
+  coordinates: [number, number][];
+}
+
+// تحميل المكون MapComponent بشكل ديناميكي
 const MapComponent = dynamic(
   () => import("../components/MapComponent").then((mod) => mod.default),
   {
@@ -27,12 +47,9 @@ const MapComponent = dynamic(
   }
 );
 
-
 const MapOnlyPage: React.FC = () => {
-  //بيانات الخدمة
-    const [serviceId, setServiceId] = useState<number | null>(null);
+  const [serviceId, setServiceId] = useState<number | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
-////
   const defaultCoordinates: Coordinates = [33.5138, 36.2765];
   const [startPoint, setStartPoint] = useState<MapLocation | null>(null);
   const [endPoint, setEndPoint] = useState<MapLocation | null>(null);
@@ -54,7 +71,7 @@ const MapOnlyPage: React.FC = () => {
   const [searching, setSearching] = useState(false);
   const [showTripInfo, setShowTripInfo] = useState(false);
   const [showSearch, setShowSearch] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false); // حالة جديدة لمؤشر التحميل
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const hideTripInfo = () => {
     setShowTripInfo(false);
@@ -66,28 +83,79 @@ const MapOnlyPage: React.FC = () => {
     setShowSearch(false);
   };
 
-
-   useEffect(() => {
-    // قراءة معلمات URL عند تحميل الصفحة
+  useEffect(() => {
     const queryParams = new URLSearchParams(window.location.search);
-    const serviceIdParam = queryParams.get('service_id');
-    const userIdParam = queryParams.get('user_id');
-    
+    const serviceIdParam = queryParams.get("service_id");
+    const userIdParam = queryParams.get("user_id");
+
     if (serviceIdParam) {
       setServiceId(parseInt(serviceIdParam));
     }
-    
     if (userIdParam) {
       setUserId(parseInt(userIdParam));
     }
-    
-    // يمكنك استخدام هذه القيم كما تحتاج
-    console.log('Service ID:', serviceIdParam, 'User ID:', userIdParam);
+    console.log("Service ID:", serviceIdParam, "User ID:", userIdParam);
   }, []);
+
+  const calculateRoute = async (start: MapLocation, end: MapLocation) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${start.lon},${start.lat};${end.lon},${end.lat}?overview=full&steps=true&annotations=true`
+      );
+      const data = await response.json();
+      if (data.code !== "Ok" || !data.routes || data.routes.length === 0) {
+        throw new Error("لم يتم العثور على مسار");
+      }
+      const route = data.routes[0];
+      const distance = route.distance / 1000;
+      const baseDuration = route.duration / 60;
+      const currentHour = new Date().getHours();
+      const isPeakHour = currentHour >= 10 && currentHour < 17;
+      const adjustedDuration = isPeakHour ? baseDuration * 1.3 : baseDuration;
+      setTripInfo({
+        distance,
+        baseDuration,
+        adjustedDuration,
+        isPeakHour,
+      });
+      let coordinates: [number, number][] = [];
+      if (route.geometry) {
+        if (typeof route.geometry === "string") {
+          coordinates = decodePolyline(route.geometry).map((point) => [point.lat, point.lng]);
+        } else if (route.geometry.coordinates) {
+          coordinates = route.geometry.coordinates.map((coord: number[]) => [coord[1], coord[0]]);
+        }
+      }
+      if (coordinates.length === 0) {
+        coordinates = [
+          [start.lat, start.lon],
+          [end.lat, end.lon],
+        ];
+        toast("تم رسم خط مستقيم بين النقطتين", { icon: "⚠️" });
+      }
+      setRouteCoordinates(coordinates);
+      const bounds = {
+        minLat: Math.min(start.lat, end.lat),
+        maxLat: Math.max(start.lat, end.lat),
+        minLng: Math.min(start.lon, end.lon),
+        maxLng: Math.max(start.lon, end.lon),
+      };
+      toast.success("تم حساب الرحلة بنجاح! جاري عرض المسار...");
+      return bounds;
+    } catch (error) {
+      console.error(error);
+      toast.error("فشل في حساب المسار: " + (error as Error).message);
+      setRouteCoordinates([]);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (startPoint && endPoint) {
-      calculateRoute(startPoint, endPoint).then(bounds => {
+      calculateRoute(startPoint, endPoint).then((bounds) => {
         if (bounds) {
           console.log("تم تحريك الخريطة لرؤية المسار كاملاً");
           displayTripInfo();
@@ -122,19 +190,18 @@ const MapOnlyPage: React.FC = () => {
       else setEndSearchResults([]);
       return;
     }
-    
     setSearching(true);
     setIsLoading(true);
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&viewbox=35.9,33.3,36.6,33.7&bounded=1`
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          query
+        )}&limit=5&viewbox=35.9,33.3,36.6,33.7&bounded=1`
       );
       const data = await response.json();
-      
       if (data.length === 0) {
         toast.error("لم يتم العثور على نتائج للبحث");
       }
-      
       if (type === "start") {
         setStartSearchResults(data);
       } else {
@@ -155,7 +222,6 @@ const MapOnlyPage: React.FC = () => {
     if (typingTimeout) {
       clearTimeout(typingTimeout);
     }
-    
     if (activeSearch === "start" && startSearchQuery.trim()) {
       setTypingTimeout(
         setTimeout(() => {
@@ -172,7 +238,6 @@ const MapOnlyPage: React.FC = () => {
       if (activeSearch === "start") setStartSearchResults([]);
       else if (activeSearch === "end") setEndSearchResults([]);
     }
-    
     return () => {
       if (typingTimeout) {
         clearTimeout(typingTimeout);
@@ -180,9 +245,13 @@ const MapOnlyPage: React.FC = () => {
     };
   }, [startSearchQuery, endSearchQuery, activeSearch]);
 
-  const handleSelectLocation = (lat: number, lon: number, displayName: string, type: "start" | "end") => {
+  const handleSelectLocation = (
+    lat: number,
+    lon: number,
+    displayName: string,
+    type: "start" | "end"
+  ) => {
     const location = { name: displayName, lat, lon };
-    
     if (type === "start") {
       setStartPoint(location);
       toast.success("تم تحديد نقطة الانطلاق");
@@ -192,15 +261,17 @@ const MapOnlyPage: React.FC = () => {
       toast.success("تم تحديد نقطة الوصول");
       setEndSearchResults([]);
     }
-    
     setActiveSearch(null);
     if (type === "start") setStartSearchQuery("");
     else setEndSearchQuery("");
   };
 
   const handleMapSelection = (lat: number, lon: number) => {
-    const location = { name: `موقع مختار (${lat.toFixed(4)}, ${lon.toFixed(4)})`, lat, lon };
-    
+    const location = {
+      name: `موقع مختار (${lat.toFixed(4)}, ${lon.toFixed(4)})`,
+      lat,
+      lon,
+    };
     if (activeSearch === "start") {
       setStartPoint(location);
       toast.success("تم تحديد نقطة الانطلاق من الخريطة");
@@ -208,7 +279,6 @@ const MapOnlyPage: React.FC = () => {
       setEndPoint(location);
       toast.success("تم تحديد نقطة الوصول من الخريطة");
     }
-    
     setIsSelectingOnMap(false);
     setActiveSearch(null);
   };
@@ -218,18 +288,16 @@ const MapOnlyPage: React.FC = () => {
       toast.error("الرجاء تحديد نقطتي الانطلاق والوصول أولاً");
       return;
     }
-    
     try {
-      const trips = JSON.parse(localStorage.getItem('savedTrips') || "[]");
+      const trips = JSON.parse(localStorage.getItem("savedTrips") || "[]");
       const newTrip = {
         id: Date.now(),
         start: startPoint,
         end: endPoint,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
-      
       trips.push(newTrip);
-      localStorage.setItem('savedTrips', JSON.stringify(trips));
+      localStorage.setItem("savedTrips", JSON.stringify(trips));
       toast.success("تم حفظ الرحلة بنجاح!");
     } catch (error) {
       console.error("Failed to save trip:", error);
@@ -237,91 +305,23 @@ const MapOnlyPage: React.FC = () => {
     }
   };
 
-  const calculateRoute = async (start: MapLocation, end: MapLocation) => {
-    setIsLoading(true);
-    
-    try {
-      const response = await fetch(
-        `https://router.project-osrm.org/route/v1/driving/${start.lon},${start.lat};${end.lon},${end.lat}?overview=full&steps=true&annotations=true`
-      );
-      const data = await response.json();
-      
-      if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
-        throw new Error('لم يتم العثور على مسار');
-      }
-      
-      const route = data.routes[0];
-      const distance = route.distance / 1000;
-      const baseDuration = route.duration / 60;
-      const currentHour = new Date().getHours();
-      const isPeakHour = currentHour >= 10 && currentHour < 17;
-      const adjustedDuration = isPeakHour ? baseDuration * 1.3 : baseDuration;
-      
-      setTripInfo({
-        distance,
-        baseDuration,
-        adjustedDuration,
-        isPeakHour
-      });
-      
-      let coordinates: [number, number][] = [];
-      
-      if (route.geometry) {
-        if (typeof route.geometry === 'string') {
-          coordinates = decodePolyline(route.geometry).map(point => [point.lat, point.lng]);
-        } else if (route.geometry.coordinates) {
-          coordinates = route.geometry.coordinates.map((coord: number[]) => [
-            coord[1], coord[0]
-          ]);
-        }
-      }
-      
-      if (coordinates.length === 0) {
-        coordinates = [
-          [start.lat, start.lon],
-          [end.lat, end.lon]
-        ];
-        toast("تم رسم خط مستقيم بين النقطتين", { icon: '⚠️' });
-      }
-      
-      setRouteCoordinates(coordinates);
-      
-      const bounds = {
-        minLat: Math.min(start.lat, end.lat),
-        maxLat: Math.max(start.lat, end.lat),
-        minLng: Math.min(start.lon, end.lon),
-        maxLng: Math.max(start.lon, end.lon)
-      };
-      
-      toast.success("تم حساب الرحلة بنجاح! جاري عرض المسار...");
-      return bounds;
-      
-    } catch (error) {
-      console.error(error);
-      toast.error("فشل في حساب المسار: " + (error as Error).message);
-      setRouteCoordinates([]);
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const decodePolyline = (encoded: string) => {
-    const poly: {lat: number, lng: number}[] = [];
-    let index = 0, lat = 0, lng = 0;
+    const poly: { lat: number; lng: number }[] = [];
+    let index = 0,
+      lat = 0,
+      lng = 0;
     const len = encoded.length;
-    
     while (index < len) {
-      let b, shift = 0, result = 0;
+      let b,
+        shift = 0,
+        result = 0;
       do {
         b = encoded.charCodeAt(index++) - 63;
         result |= (b & 0x1f) << shift;
         shift += 5;
       } while (b >= 0x20);
-      
-      const dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+      const dlat = result & 1 ? ~(result >> 1) : result >> 1;
       lat += dlat;
-      
       shift = 0;
       result = 0;
       do {
@@ -329,26 +329,22 @@ const MapOnlyPage: React.FC = () => {
         result |= (b & 0x1f) << shift;
         shift += 5;
       } while (b >= 0x20);
-      
-      const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+      const dlng = result & 1 ? ~(result >> 1) : result >> 1;
       lng += dlng;
-      
-      poly.push({lat: lat * 1e-5, lng: lng * 1e-5});
+      poly.push({ lat: lat * 1e-5, lng: lng * 1e-5 });
     }
-    
     return poly;
   };
 
   const getCurrentLocation = async (type: "start" | "end") => {
-    if (typeof window === 'undefined' || !('geolocation' in navigator)) {
+    if (typeof window === "undefined" || !("geolocation" in navigator)) {
       toast.error("هذه الميزة غير متاحة في بيئة الخادم أو المتصفح لا يدعمها");
       return;
     }
-
     let permissionStatus: PermissionStatus | null = null;
     try {
-      permissionStatus = await navigator.permissions?.query({ name: 'geolocation' });
-      if (permissionStatus?.state === 'denied') {
+      permissionStatus = await navigator.permissions?.query({ name: "geolocation" });
+      if (permissionStatus?.state === "denied") {
         toast.error(
           <div>
             <p>تم رفض إذن الموقع</p>
@@ -362,7 +358,6 @@ const MapOnlyPage: React.FC = () => {
     } catch (permissionError) {
       console.log("Permission API not supported", permissionError);
     }
-
     const loadingToast = toast.loading(
       <div>
         <p>جاري تحديد موقعك...</p>
@@ -370,41 +365,33 @@ const MapOnlyPage: React.FC = () => {
       </div>,
       { duration: 10000 }
     );
-
     try {
       const position = await Promise.race<GeolocationPosition>([
         new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(
-            resolve,
-            reject,
-            {
-              enableHighAccuracy: true,
-              timeout: 15000,
-              maximumAge: 0
-            }
-          );
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0,
+          });
         }),
-        new Promise<never>((_, reject) => 
+        new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("تجاوز الوقت المحدد")), 15000)
-        )
+        ),
       ]);
-
       const { latitude, longitude } = position.coords;
       let locationName = "الموقع الحالي";
-
       try {
         const response = await fetch(
           `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
         );
         const data = await response.json();
-        locationName = data.display_name || 
-                      (data.address?.road ? `شارع ${data.address.road}` : locationName);
+        locationName =
+          data.display_name ||
+          (data.address?.road ? `شارع ${data.address.road}` : locationName);
       } catch (reverseError) {
         console.log("Reverse geocoding failed, using coordinates only", reverseError);
       }
-
       handleSelectLocation(latitude, longitude, locationName, type);
-      
       toast.success(
         <div>
           <p>تم تحديد موقعك بنجاح</p>
@@ -412,22 +399,19 @@ const MapOnlyPage: React.FC = () => {
         </div>,
         { id: loadingToast, duration: 5000 }
       );
-
     } catch (error) {
       console.error("Geolocation error:", error);
-      
       let errorMessage = (
         <div>
           <p>فشل في تحديد الموقع</p>
           <p className="text-sm">السبب: {getAndroidErrorMessage(error)}</p>
         </div>
       );
-
       toast.custom(
         (t) => (
           <div>
             {errorMessage}
-            <button 
+            <button
               onClick={() => {
                 toast.dismiss(t.id);
                 getCurrentLocation(type);
@@ -438,9 +422,9 @@ const MapOnlyPage: React.FC = () => {
             </button>
           </div>
         ),
-        { 
+        {
           id: loadingToast,
-          duration: 7000
+          duration: 7000,
         }
       );
     }
@@ -448,7 +432,7 @@ const MapOnlyPage: React.FC = () => {
 
   const getAndroidErrorMessage = (error: unknown): string => {
     if (error instanceof GeolocationPositionError) {
-      switch(error.code) {
+      switch (error.code) {
         case error.PERMISSION_DENIED:
           return "رفض الإذن - تأكد من تفعيل صلاحيات الموقع";
         case error.POSITION_UNAVAILABLE:
@@ -459,108 +443,89 @@ const MapOnlyPage: React.FC = () => {
           return "خطأ غير معروف في نظام الموقع";
       }
     }
-    
     if (error instanceof Error) {
-      return error.message.includes("تجاوز الوقت") ? 
-        "استغرقت العملية وقتاً طويلاً" : 
-        error.message;
+      return error.message.includes("تجاوز الوقت")
+        ? "استغرقت العملية وقتاً طويلاً"
+        : error.message;
     }
-
     return "حدث خطأ غير متوقع";
   };
 
-  // دالة مساعدة لاستخراج الجزء الرئيسي من اسم الموقع
   const getShortLocationName = (fullName: string | undefined) => {
-    if (!fullName) return '';
-    
-    // تقسيم النص حسب الفواصل وأخذ الجزء الأول
-    const parts = fullName.split(',');
+    if (!fullName) return "";
+    const parts = fullName.split(",");
     return parts[0].trim();
   };
 
-  // إرسال الطلب للسيرفر
   const submitOrder = async () => {
-  if (!startPoint || !endPoint || !tripInfo || !serviceId || !userId) {
-    toast.error("الرجاء تحديد نقاط الانطلاق والوصول أولاً");
-    return;
-  }
-
-  setIsSubmitting(true);
-  const loadingToast = toast.loading("جاري إرسال الطلب...");
-
-  try {
-    const orderData = {
-      user_id: userId,
-      ser_chi_id: serviceId, // تغيير من service_id إلى ser_chi_id
-      start_point: `${startPoint.lat},${startPoint.lon}`,
-      start_text: getShortLocationName(startPoint.name.substring(0, 255)),
-      start_detlis: startPoint.name,
-      end_point: `${endPoint.lat},${endPoint.lon}`,
-      end_text: getShortLocationName(endPoint.name.substring(0, 255)),
-      end_detlis: endPoint.name,
-      distance_km: tripInfo.distance.toFixed(2),
-      duration_min: Math.round(tripInfo.adjustedDuration),
-      status: "new_order",
-      start_time: new Date().toISOString()
-    };
-
-    const API_URL = 'https://alrasekhooninlaw.com/bousla/submit_order.php';
-
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(orderData)
-    });
-
-    const result = await response.json();
-
-    if (!response.ok || !result.success) {
-      throw new Error(result.message || 'فشل في إرسال الطلب');
+    if (!startPoint || !endPoint || !tripInfo || !serviceId || !userId) {
+      toast.error("الرجاء تحديد نقاط الانطلاق والوصول أولاً");
+      return;
     }
-
-    if (!result.order_id) {
-      throw new Error('لم يتم استلام رقم الطلب من الخادم');
+    setIsSubmitting(true);
+    const loadingToast = toast.loading("جاري إرسال الطلب...");
+    try {
+      const orderData = {
+        user_id: userId,
+        ser_chi_id: serviceId,
+        start_point: `${startPoint.lat},${startPoint.lon}`,
+        start_text: getShortLocationName(startPoint.name).substring(0, 255),
+        start_detlis: startPoint.name,
+        end_point: `${endPoint.lat},${endPoint.lon}`,
+        end_text: getShortLocationName(endPoint.name).substring(0, 255),
+        end_detlis: endPoint.name,
+        distance_km: tripInfo.distance.toFixed(2),
+        duration_min: Math.round(tripInfo.adjustedDuration),
+        status: "new_order",
+        start_time: new Date().toISOString(),
+      };
+      const API_URL = "https://alrasekhooninlaw.com/bousla/submit_order.php";
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(orderData),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "فشل في إرسال الطلب");
+      }
+      if (!result.order_id) {
+        throw new Error("لم يتم استلام رقم الطلب من الخادم");
+      }
+      toast.success(`تم إنشاء الطلب بنجاح! رقم الطلب: ${result.order_id}`, {
+        id: loadingToast,
+        duration: 5000,
+      });
+      setStartPoint(null);
+      setEndPoint(null);
+      setTripInfo(null);
+    } catch (error) {
+      console.error("فشل إرسال الطلب:", error);
+      let errorMessage = "حدث خطأ أثناء إرسال الطلب";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      toast.error(errorMessage, {
+        id: loadingToast,
+        duration: 5000,
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    toast.success(`تم إنشاء الطلب بنجاح! رقم الطلب: ${result.order_id}`, {
-      id: loadingToast,
-      duration: 5000
-    });
-
-    setStartPoint(null);
-    setEndPoint(null);
-    setTripInfo(null);
-
-  } catch (error) {
-    console.error("فشل إرسال الطلب:", error);
-    
-    let errorMessage = "حدث خطأ أثناء إرسال الطلب";
-    if (error instanceof Error) {
-      errorMessage = error.message;
-    }
-
-    toast.error(errorMessage, {
-      id: loadingToast,
-      duration: 5000
-    });
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+  };
 
   return (
     <Layout>
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
         className="flex flex-col min-h-screen bg-gray-50 touch-none"
         dir="rtl"
       >
-        {/* عنوان الصفحة */}
-        <motion.div 
+        <motion.div
           whileHover={{ scale: 1.01 }}
           className="bg-white p-2 md:p-4 shadow-md w-full max-w-6xl mx-auto rounded-b-xl touch-none text-right"
         >
@@ -568,52 +533,42 @@ const MapOnlyPage: React.FC = () => {
             بوصلة
           </h1>
         </motion.div>
-        
-        {/* معلومات الرحلة */}
+
         {tripInfo && showTripInfo && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             className="bg-white border border-gray-200 rounded-lg mx-2 mt-1 p-2 shadow-sm relative"
           >
-            <button 
+            <button
               onClick={hideTripInfo}
               className="absolute left-1 top-1 text-gray-500 hover:text-gray-700"
             >
               <FaChevronDown className="transform rotate-90 text-sm" />
             </button>
-            
             <h3 className="font-bold text-green-800 text-xs mb-1 flex items-center gap-1 justify-center">
               <FaInfoCircle className="text-xs" />
               معلومات الرحلة
             </h3>
-            
             <div className="space-y-1 text-xs">
-              {/* نقطة الانطلاق */}
               <div className="flex items-start">
                 <div className="text-gray-700 font-medium w-20">الانطلاق:</div>
                 <div className="font-semibold flex-1 text-right pr-1">
                   {getShortLocationName(startPoint?.name)}
                 </div>
               </div>
-              
-              {/* نقطة الوصول */}
               <div className="flex items-start">
                 <div className="text-gray-700 font-medium w-20">الوصول:</div>
                 <div className="font-semibold flex-1 text-right pr-1">
                   {getShortLocationName(endPoint?.name)}
                 </div>
-              </div>  
-              
-              {/* المسافة */}
+              </div>
               <div className="flex items-center">
                 <div className="text-green-700 font-medium w-20">المسافة:</div>
                 <div className="font-semibold flex-1 text-right pr-1">
                   {tripInfo.distance.toFixed(1)} كم
                 </div>
               </div>
-              
-              {/* الوقت المتوقع */}
               <div className="flex items-center">
                 <div className="text-green-700 font-medium w-20">الوقت:</div>
                 <div className="font-semibold flex-1 text-right pr-1">
@@ -625,26 +580,20 @@ const MapOnlyPage: React.FC = () => {
           </motion.div>
         )}
 
-        {/* شريط البحث */}
         {showSearch && (
-          <motion.div 
+          <motion.div
             layout
             className="bg-white p-2 md:p-4 shadow-md w-full max-w-6xl mx-auto my-1 rounded-lg relative text-right"
           >
             <div className="flex flex-col gap-2">
-              {/* صف حقول البحث */}
               <div className="flex flex-col sm:flex-row gap-2">
-                {/* بحث مكان الانطلاق */}
-                <motion.div 
-                  whileHover={{ y: -1 }}
-                  className="flex-1 relative"
-                >
+                <motion.div whileHover={{ y: -1 }} className="flex-1 relative">
                   <div className="flex justify-between items-center mb-1">
                     <label className="block text-xs sm:text-sm font-medium text-gray-700">
                       مكان الانطلاق
                     </label>
                     {startPoint && (
-                      <button 
+                      <button
                         onClick={clearStartPoint}
                         className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1"
                       >
@@ -659,48 +608,54 @@ const MapOnlyPage: React.FC = () => {
                     </div>
                     <motion.input
                       type="text"
-                      value={activeSearch === "start" ? startSearchQuery : getShortLocationName(startPoint?.name) || ""}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setStartSearchQuery(e.target.value)}
+                      value={
+                        activeSearch === "start"
+                          ? startSearchQuery
+                          : getShortLocationName(startPoint?.name) || ""
+                      }
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setStartSearchQuery(e.target.value)
+                      }
                       onFocus={() => setActiveSearch("start")}
                       placeholder="ابحث عن مكان الانطلاق"
                       className="w-full p-1 sm:p-2 text-xs sm:text-sm border rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-transparent"
                       whileFocus={{ scale: 1.01 }}
-                      style={{ direction: 'rtl' }}
+                      style={{ direction: "rtl" }}
                     />
-                    {(activeSearch === "start" && searching) && (
+                    {activeSearch === "start" && searching && (
                       <div className="absolute left-5 top-1/2 transform -translate-y-1/2">
                         <FaSpinner className="text-blue-500 text-sm animate-spin" />
                       </div>
                     )}
                   </div>
-                  
-                  {/* نتائج بحث مكان الانطلاق */}
                   {activeSearch === "start" && startSearchResults.length > 0 && (
-                    <motion.div 
+                    <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
                       className="absolute z-[9999] w-full mt-1 border border-gray-200 rounded-lg bg-white shadow-xl overflow-hidden text-right"
                       style={{
-                        top: '100%',
+                        top: "100%",
                         right: 0,
-                        maxHeight: '300px'
+                        maxHeight: "300px",
                       }}
                     >
                       <div className="overflow-y-auto max-h-[300px]">
-                        {startSearchResults.map((result, index) => (
+                        {startSearchResults.map((result: any, index: number) => (
                           <motion.div
                             key={index}
                             initial={{ opacity: 0, y: 5 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.03 }}
                             className="p-2 border-b hover:bg-gray-100 cursor-pointer"
-                            onClick={() => handleSelectLocation(
-                              parseFloat(result.lat),
-                              parseFloat(result.lon),
-                              result.display_name,
-                              "start"
-                            )}
+                            onClick={() =>
+                              handleSelectLocation(
+                                parseFloat(result.lat),
+                                parseFloat(result.lon),
+                                result.display_name,
+                                "start"
+                              )
+                            }
                           >
                             <div className="text-xs sm:text-sm font-medium line-clamp-2">
                               {result.display_name}
@@ -714,18 +669,14 @@ const MapOnlyPage: React.FC = () => {
                     </motion.div>
                   )}
                 </motion.div>
-                
-                {/* بحث مكان الوصول */}
-                <motion.div 
-                  whileHover={{ y: -1 }}
-                  className="flex-1 relative"
-                >
+
+                <motion.div whileHover={{ y: -1 }} className="flex-1 relative">
                   <div className="flex justify-between items-center mb-1">
                     <label className="block text-xs sm:text-sm font-medium text-gray-700">
                       مكان الوصول
                     </label>
                     {endPoint && (
-                      <button 
+                      <button
                         onClick={clearEndPoint}
                         className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1"
                       >
@@ -740,48 +691,54 @@ const MapOnlyPage: React.FC = () => {
                     </div>
                     <motion.input
                       type="text"
-                      value={activeSearch === "end" ? endSearchQuery : getShortLocationName(endPoint?.name) || ""}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEndSearchQuery(e.target.value)}
+                      value={
+                        activeSearch === "end"
+                          ? endSearchQuery
+                          : getShortLocationName(endPoint?.name) || ""
+                      }
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setEndSearchQuery(e.target.value)
+                      }
                       onFocus={() => setActiveSearch("end")}
                       placeholder="ابحث عن مكان الوصول"
                       className="w-full p-1 sm:p-2 text-xs sm:text-sm border rounded-lg focus:ring-1 focus:ring-green-500 focus:border-transparent"
                       whileFocus={{ scale: 1.01 }}
-                      style={{ direction: 'rtl' }}
+                      style={{ direction: "rtl" }}
                     />
-                    {(activeSearch === "end" && searching) && (
+                    {activeSearch === "end" && searching && (
                       <div className="absolute left-5 top-1/2 transform -translate-y-1/2">
                         <FaSpinner className="text-green-500 text-sm animate-spin" />
                       </div>
                     )}
                   </div>
-                  
-                  {/* نتائج بحث مكان الوصول */}
                   {activeSearch === "end" && endSearchResults.length > 0 && (
-                    <motion.div 
+                    <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
                       className="absolute z-[9999] w-full mt-1 border border-gray-200 rounded-lg bg-white shadow-xl overflow-hidden text-right"
                       style={{
-                        top: '100%',
+                        top: "100%",
                         right: 0,
-                        maxHeight: '300px'
+                        maxHeight: "300px",
                       }}
                     >
                       <div className="overflow-y-auto max-h-[300px]">
-                        {endSearchResults.map((result, index) => (
+                        {endSearchResults.map((result: any, index: number) => (
                           <motion.div
                             key={index}
                             initial={{ opacity: 0, y: 5 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.03 }}
                             className="p-2 border-b hover:bg-gray-100 cursor-pointer"
-                            onClick={() => handleSelectLocation(
-                              parseFloat(result.lat),
-                              parseFloat(result.lon),
-                              result.display_name,
-                              "end"
-                            )}
+                            onClick={() =>
+                              handleSelectLocation(
+                                parseFloat(result.lat),
+                                parseFloat(result.lon),
+                                result.display_name,
+                                "end"
+                              )
+                            }
                           >
                             <div className="text-xs sm:text-sm font-medium line-clamp-2">
                               {result.display_name}
@@ -796,11 +753,9 @@ const MapOnlyPage: React.FC = () => {
                   )}
                 </motion.div>
               </div>
-              
-              {/* صف الأزرار */}
+
               <div className="flex flex-wrap gap-1 sm:gap-2">
-                {/* زر التحديد من الخريطة */}
-                <motion.div 
+                <motion.div
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
                   className="flex-1 min-w-[48%] sm:min-w-0"
@@ -809,25 +764,29 @@ const MapOnlyPage: React.FC = () => {
                     onClick={() => {
                       if (activeSearch) {
                         setIsSelectingOnMap(true);
-                        toast(`حدد موقع ${activeSearch === "start" ? "الانطلاق" : "الوصول"} على الخريطة`, {
-                          icon: '📍',
-                        });
+                        toast(
+                          `حدد موقع ${
+                            activeSearch === "start" ? "الانطلاق" : "الوصول"
+                          } على الخريطة`,
+                          {
+                            icon: "📍",
+                          }
+                        );
                       }
                     }}
                     disabled={!activeSearch}
                     className={`w-full px-2 py-1 sm:px-4 sm:py-2 text-xs sm:text-sm rounded-lg flex items-center justify-center gap-1 ${
-                      activeSearch 
-                        ? 'bg-purple-600 hover:bg-purple-700 text-white' 
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      activeSearch
+                        ? "bg-purple-600 hover:bg-purple-700 text-white"
+                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
                     } transition-colors`}
                   >
                     <FaMapMarkerAlt className="text-xs sm:text-sm" />
                     حدد على الخريطة
                   </button>
                 </motion.div>
-                
-                {/* زر حفظ الرحلة */}
-                <motion.div 
+
+                <motion.div
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
                   className="flex-1 min-w-[48%] sm:min-w-0"
@@ -836,9 +795,9 @@ const MapOnlyPage: React.FC = () => {
                     onClick={saveTrip}
                     disabled={!startPoint || !endPoint}
                     className={`w-full px-2 py-1 sm:px-4 sm:py-2 text-xs sm:text-sm rounded-lg flex items-center justify-center gap-1 ${
-                      startPoint && endPoint 
-                        ? 'bg-green-600 hover:bg-green-700 text-white' 
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      startPoint && endPoint
+                        ? "bg-green-600 hover:bg-green-700 text-white"
+                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
                     } transition-colors`}
                   >
                     <FaSave className="text-xs sm:text-sm" />
@@ -850,13 +809,12 @@ const MapOnlyPage: React.FC = () => {
           </motion.div>
         )}
 
-        {/* زر تحديد الموقع الحالي */}
         {showSearch && (
           <div className="w-full max-w-6xl mx-auto px-2">
-            <motion.div 
+            <motion.div
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
-              className="flex-1 min-w-[48%] sm:min-w-0"
+              className="flex-1 min-w-[48%] sm:min-w-0 mt-2"
             >
               <button
                 onClick={() => {
@@ -866,9 +824,9 @@ const MapOnlyPage: React.FC = () => {
                 }}
                 disabled={!activeSearch}
                 className={`w-full px-2 py-1 sm:px-4 sm:py-2 text-xs sm:text-sm rounded-lg flex items-center justify-center gap-1 ${
-                  activeSearch 
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  activeSearch
+                    ? "bg-blue-600 hover:bg-blue-700 text-white"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
                 } transition-colors`}
               >
                 <FaLocationArrow className="text-xs sm:text-sm" />
@@ -877,10 +835,9 @@ const MapOnlyPage: React.FC = () => {
             </motion.div>
           </div>
         )}
-        
-        {/* زر عرض تفاصيل الرحلة عندما تكون مخفية */}
+
         {startPoint && endPoint && tripInfo && !showTripInfo && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             whileHover={{ scale: 1.03 }}
@@ -897,9 +854,8 @@ const MapOnlyPage: React.FC = () => {
           </motion.div>
         )}
 
-        {/* زر الانتقال لصفحة الطلب */}
         {startPoint && endPoint && tripInfo && (
-          <motion.div 
+          <motion.div
             whileHover={{ scale: isSubmitting ? 1 : 1.03 }}
             whileTap={{ scale: isSubmitting ? 1 : 0.97 }}
             className="mx-4 mt-3 mb-4"
@@ -908,7 +864,7 @@ const MapOnlyPage: React.FC = () => {
               onClick={submitOrder}
               disabled={isSubmitting}
               className={`w-full px-4 py-3 ${
-                isSubmitting ? 'bg-green-700' : 'bg-green-600 hover:bg-green-700'
+                isSubmitting ? "bg-green-700" : "bg-green-600 hover:bg-green-700"
               } text-white rounded-lg flex items-center justify-center gap-2 shadow-lg`}
             >
               {isSubmitting ? (
@@ -922,26 +878,27 @@ const MapOnlyPage: React.FC = () => {
             </button>
           </motion.div>
         )}
-        
-        {/* الخريطة بحجم أكبر */}
-        <motion.div 
+
+        <motion.div
           layout
           className="flex-1 p-1 md:p-4 max-w-6xl w-full mx-auto touch-none relative z-10"
         >
           <div className="h-[calc(100vh-160px)] md:h-[calc(100vh-220px)] w-full rounded-lg sm:rounded-xl overflow-hidden shadow-md sm:shadow-lg touch-none">
-            <MapComponent 
-              coordinates={startPoint ? [startPoint.lat, startPoint.lon] : defaultCoordinates}
-              locations={
-                [
-                  ...(startPoint ? [{ ...startPoint, isStartPoint: true }] : []),
-                  ...(endPoint ? [{ ...endPoint, isEndPoint: true }] : [])
-                ]
+            <MapComponent
+              coordinates={
+                startPoint ? [startPoint.lat, startPoint.lon] : defaultCoordinates
               }
+              locations={[
+                ...(startPoint ? [{ ...startPoint, isStartPoint: true }] : []),
+                ...(endPoint ? [{ ...endPoint, isEndPoint: true }] : []),
+              ]}
               routes={
                 routeCoordinates.length > 0
-                  ? [{
-                      coordinates: routeCoordinates
-                    }]
+                  ? [
+                      {
+                        coordinates: routeCoordinates,
+                      },
+                    ]
                   : []
               }
               isSelectingOnMap={isSelectingOnMap}
