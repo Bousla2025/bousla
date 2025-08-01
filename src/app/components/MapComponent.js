@@ -1,5 +1,7 @@
 // mapcomponent.js
-import React, { useEffect, useState } from "react";
+
+// components/MapComponent.js
+import React, { useEffect } from "react";
 import L from "leaflet";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -43,7 +45,7 @@ const MapClickHandler = ({ active, onSelect }) => {
   return null;
 };
 
-// Sub-component to adjust map view based on routes and locations
+// Sub-component to adjust map view
 const RouteAndLocationUpdater = ({ routes, locations, initialCoordinates }) => {
   const map = useMap();
 
@@ -64,8 +66,7 @@ const RouteAndLocationUpdater = ({ routes, locations, initialCoordinates }) => {
           easeLinearity: 0.25
         });
       }, 500);
-    } else if (initialCoordinates && !isNaN(initialCoordinates[0]) && !isNaN(initialCoordinates[1])) {
-      // If there are no routes or locations, set the view to the initial coordinates
+    } else if (initialCoordinates && !isNaN(initialCoordinates[0])) {
       map.setView(initialCoordinates, 13);
     }
   }, [routes, locations, map, initialCoordinates]);
@@ -73,20 +74,21 @@ const RouteAndLocationUpdater = ({ routes, locations, initialCoordinates }) => {
   return null;
 };
 
-// The main component
+// Main component
 const MapComponent = ({ 
-  coordinates, 
+  coordinates = [33.5138, 36.2765], 
   routes = [], 
   locations = [], 
   isSelectingOnMap = false, 
   onSelectLocation = () => {} 
 }) => {
-  const validCoordinates = Array.isArray(coordinates) && 
-                         coordinates.length === 2 && 
-                         !isNaN(coordinates[0]) && 
-                         !isNaN(coordinates[1])
-                         ? coordinates
-                         : [33.5138, 36.2765];
+  const validCoordinates = 
+    Array.isArray(coordinates) && 
+    coordinates.length === 2 && 
+    !isNaN(coordinates[0]) && 
+    !isNaN(coordinates[1])
+      ? [coordinates[0], coordinates[1]]
+      : [33.5138, 36.2765];
 
   const getRouteColor = (index) => {
     const colors = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6'];
@@ -106,7 +108,11 @@ const MapComponent = ({
       />
 
       <MapClickHandler active={isSelectingOnMap} onSelect={onSelectLocation} />
-      <RouteAndLocationUpdater routes={routes} locations={locations} initialCoordinates={validCoordinates} />
+      <RouteAndLocationUpdater 
+        routes={routes} 
+        locations={locations} 
+        initialCoordinates={validCoordinates} 
+      />
 
       {routes.map((route, index) => {
         const { coordinates } = route;
