@@ -2,6 +2,7 @@
 import React from "react";
 import { FaInfoCircle } from "react-icons/fa";
 import { motion } from "framer-motion";
+import Image from "next/image";
 
 interface ChildService {
   id: number;
@@ -48,11 +49,13 @@ const ChildServicesList: React.FC<ChildServicesListProps> = ({ services, distanc
             <div className="p-3">
               <div className="flex justify-center mb-2">
                 {service.photo1 ? (
-                  <img 
-                    src={service.photo1} 
-                    alt={service.name1}
-                    className="h-12 w-12 object-contain"
-                  />
+                 <Image 
+  src={service.photo1} 
+  alt={service.name1}
+  width={48}
+  height={48}
+  className="object-contain"
+/>
                 ) : (
                   <div className="h-12 w-12 bg-gray-200 rounded-full flex items-center justify-center">
                     <span className="text-xs text-gray-500">لا يوجد صورة</span>

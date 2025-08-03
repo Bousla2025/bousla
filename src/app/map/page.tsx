@@ -35,6 +35,23 @@ interface RouteData {
   }[];
 }
 
+interface ChildService {
+  id: number;
+  ser_id: number;
+  name1: string;
+  f_km: string;
+  km: string;
+  m_cost: string;
+  add_cost: string;
+  dis_cost: string;
+  photo1: string;
+  note: string;
+  tax: string;
+  car_seats: string;
+  com_percent: string;
+  active: number;
+}
+
 const MapComponent = dynamic(
   () => import("../components/MapComponent").then((mod) => mod.default),
   {
@@ -57,7 +74,7 @@ const MapOnlyPage: React.FC = () => {
   const [startSearchResults, setStartSearchResults] = useState<SearchResult[]>([]);
   const [endSearchResults, setEndSearchResults] = useState<SearchResult[]>([]);
   const [isSelectingOnMap, setIsSelectingOnMap] = useState(false);
-  const [childServices, setChildServices] = useState<any[]>([]);
+  const [childServices, setChildServices] = useState<ChildService[]>([]);
   const [tripInfo, setTripInfo] = useState<{
     distance: number;
     baseDuration: number;
