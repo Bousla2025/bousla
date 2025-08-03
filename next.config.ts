@@ -1,13 +1,24 @@
+// next.config.ts
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-};
+  
+  // إعدادات الصور المطلوبة لمكون next/image
+  images: {
+    domains: ['alrasekhooninlaw.com'],
+    // أو استخدام remotePatterns للإصدارات الحديثة من Next.js
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'alrasekhooninlaw.com',
+        port: '',
+        pathname: '/bousla/img/ser_chi/**',
+      },
+    ],
+  },
 
-export default nextConfig;
-module.exports = nextConfig
-
-module.exports = {
+  // إعدادات rewrites
   async rewrites() {
     return [
       {
@@ -17,3 +28,6 @@ module.exports = {
     ];
   },
 };
+
+// تصدير واحد فقط
+export default nextConfig;
