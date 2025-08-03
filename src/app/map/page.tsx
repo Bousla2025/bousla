@@ -9,6 +9,7 @@ import { FaMapMarkerAlt, FaFlagCheckered, FaSave, FaLocationArrow, FaArrowRight,
 import { motion } from "framer-motion";
 import { toast } from "react-hot-toast";
 import GlobeLoader from "../components/GlobeLoader";
+import ChildServicesList from "../components/ChildServicesList";
 
 type Coordinates = [number, number];
 
@@ -56,6 +57,7 @@ const MapOnlyPage: React.FC = () => {
   const [startSearchResults, setStartSearchResults] = useState<SearchResult[]>([]);
   const [endSearchResults, setEndSearchResults] = useState<SearchResult[]>([]);
   const [isSelectingOnMap, setIsSelectingOnMap] = useState(false);
+  const [childServices, setChildServices] = useState<any[]>([]);
   const [tripInfo, setTripInfo] = useState<{
     distance: number;
     baseDuration: number;
@@ -77,6 +79,38 @@ const MapOnlyPage: React.FC = () => {
     setShowTripInfo(true);
     setShowSearch(false);
   };
+
+  useEffect(() => {
+  // قراءة البيانات المشفرة
+  const encryptedData = localStorage.getItem('service_data');
+  
+  if (encryptedData) {
+    try {
+      // فك التشفير
+      const decryptedData = JSON.parse(atob(encryptedData));
+      
+      // التحقق من صلاحية البيانات (اختياري)
+      const currentTime = Date.now();
+      if (currentTime - decryptedData.timestamp > 5 * 60 * 1000) { // 5 دقائق كحد أقصى
+        throw new Error('انتهت صلاحية البيانات');
+      }
+      
+      // تعيين القيم
+      setServiceId(decryptedData.service_id);
+      setUserId(decryptedData.user_id);
+      
+      // مسح البيانات بعد استخدامها (اختياري)
+      localStorage.removeItem('service_data');
+    } catch (error) {
+      console.error('فشل في قراءة البيانات:', error);
+      toast.error('حدث خطأ في تحميل بيانات الخدمة');
+      // يمكنك إعادة التوجيه إلى الصفحة الرئيسية هنا
+    }
+  } else {
+    toast.error('لا توجد بيانات خدمة متاحة');
+    // يمكنك إعادة التوجيه إلى الصفحة الرئيسية هنا
+  }
+}, []);
 
   useEffect(() => {
     const queryParams = new URLSearchParams(window.location.search);
@@ -535,6 +569,28 @@ const MapOnlyPage: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+  if (!serviceId) return;
+
+  const fetchChildServices = async () => {
+    try {
+      const response = await fetch(`https://alrasekhooninlaw.com/bousla/get_child_services.php?ser_id=${serviceId}`);
+      const data = await response.json();
+      
+      if (data.success && data.services) {
+        setChildServices(data.services);
+      } else {
+        toast.error("فشل في جلب الخدمات الفرعية");
+      }
+    } catch (error) {
+      console.error("Error fetching child services:", error);
+      toast.error("حدث خطأ أثناء جلب الخدمات الفرعية");
+    }
+  };
+
+  fetchChildServices();
+}, [serviceId]);
+
   return (
     <Layout>
       <motion.div 
@@ -556,55 +612,34 @@ const MapOnlyPage: React.FC = () => {
         
         {/* Trip info */}
         {tripInfo && showTripInfo && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white border border-gray-200 rounded-lg mx-2 mt-1 p-2 shadow-sm relative"
-          >
-            <button 
-              onClick={hideTripInfo}
-              className="absolute left-1 top-1 text-gray-500 hover:text-gray-700"
-            >
-              <FaChevronDown className="transform rotate-90 text-sm" />
-            </button>
-            
-            <h3 className="font-bold text-green-800 text-xs mb-1 flex items-center gap-1 justify-center">
-              <FaInfoCircle className="text-xs" />
-              معلومات الرحلة
-            </h3>
-            
-            <div className="space-y-1 text-xs">
-              <div className="flex items-start">
-                <div className="text-gray-700 font-medium w-20">الانطلاق:</div>
-                <div className="font-semibold flex-1 text-right pr-1">
-                  {getShortLocationName(startPoint?.name)}
-                </div>
-              </div>
-              
-              <div className="flex items-start">
-                <div className="text-gray-700 font-medium w-20">الوصول:</div>
-                <div className="font-semibold flex-1 text-right pr-1">
-                  {getShortLocationName(endPoint?.name)}
-                </div>
-              </div>  
-              
-              <div className="flex items-center">
-                <div className="text-green-700 font-medium w-20">المسافة:</div>
-                <div className="font-semibold flex-1 text-right pr-1">
-                  {tripInfo.distance.toFixed(1)} كم
-                </div>
-              </div>
-              
-              <div className="flex items-center">
-                <div className="text-green-700 font-medium w-20">الوقت:</div>
-                <div className="font-semibold flex-1 text-right pr-1">
-                  {tripInfo.adjustedDuration.toFixed(0)} دقيقة
-                  {tripInfo.isPeakHour && " (ذروة)"}
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
+  <motion.div
+    initial={{ opacity: 0, y: -20 }}
+    animate={{ opacity: 1, y: 0 }}
+    className="bg-white border border-gray-200 rounded-lg mx-2 mt-1 p-2 shadow-sm relative"
+  >
+    <button 
+      onClick={hideTripInfo}
+      className="absolute left-1 top-1 text-gray-500 hover:text-gray-700"
+    >
+      <FaChevronDown className="transform rotate-90 text-sm" />
+    </button>
+    
+    <h3 className="font-bold text-green-800 text-xs mb-1 flex items-center gap-1 justify-center">
+      <FaInfoCircle className="text-xs" />
+      اختر نوع الخدمة
+    </h3>
+    
+    {childServices.length > 0 ? (
+      <ChildServicesList 
+        services={childServices}
+        distance={tripInfo.distance}
+        duration={tripInfo.adjustedDuration}
+      />
+    ) : (
+      <p className="text-center text-gray-500 py-4">جارٍ تحميل الخدمات المتاحة...</p>
+    )}
+  </motion.div>
+)}
 
         {/* Search bar */}
         {showSearch && (

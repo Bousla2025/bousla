@@ -208,10 +208,20 @@ export default function HomePage() {
 
   // فتح الخريطة في صفحة جديدة
   const handleServiceClick = (serviceId: number) => {
-      // فتح الخريطة في نافذة جديدة داخل التطبيق
-    const mapUrl = `/map?service_id=${serviceId}&user_id=1`;
-    window.location.href = mapUrl;
+  // إنشاء كائن يحتوي البيانات
+  const serviceData = {
+    service_id: serviceId,
+    user_id: 1, // أو أي قيمة user_id
+    timestamp: Date.now() // لإضافة طبقة أمان إضافية
   };
+
+  // تخزين البيانات مشفرة
+  const encryptedData = btoa(JSON.stringify(serviceData));
+  localStorage.setItem('service_data', encryptedData);
+  
+  // الانتقال إلى صفحة الخريطة بدون معلمات
+  window.location.href = '/map';
+};
 
   // بيانات وهمية للخدمات أثناء التحميل
   const dummyServices = [
