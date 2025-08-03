@@ -1,8 +1,8 @@
 // components/ChildServicesList.tsx
-import React from "react";
+
+import React, { useState } from "react"; // أضفنا useState هنا
 import { FaInfoCircle } from "react-icons/fa";
 import { motion } from "framer-motion";
-import Image from "next/image";
 
 interface ChildService {
   id: number;
@@ -22,7 +22,17 @@ interface ChildServicesListProps {
   duration: number;
 }
 
+interface PricingDetailsModalProps {
+  service: ChildService;
+  distance: number;
+  duration: number;
+  onClose: () => void;
+}
+
+//عرض الخدمات
 const ChildServicesList: React.FC<ChildServicesListProps> = ({ services, distance, duration }) => {
+  const [selectedService, setSelectedService] = useState<ChildService | null>(null);
+
   const calculatePrice = (service: ChildService) => {
     const firstKm = parseFloat(service.f_km) || 0;
     const kmPrice = parseFloat(service.km) || 0;
@@ -31,10 +41,9 @@ const ChildServicesList: React.FC<ChildServicesListProps> = ({ services, distanc
     const discount = parseFloat(service.dis_cost) || 0;
     const tax = parseFloat(service.tax) || 0;
     
-    // الحساب: (سعر أول كم + (سعر الكم * المسافة) + (سعر الدقيقة * الوقت) + الإضافة المالية + الضريبة) - الحسم
     const price = (firstKm + (kmPrice * distance) + (minutePrice * duration) + additionalCost + tax) - discount;
     
-    return Math.max(0, price).toFixed(0); // التأكد من أن السعر لا يكون سالباً
+    return Math.max(0, price).toFixed(0);
   };
 
   return (
@@ -49,13 +58,11 @@ const ChildServicesList: React.FC<ChildServicesListProps> = ({ services, distanc
             <div className="p-3">
               <div className="flex justify-center mb-2">
                 {service.photo1 ? (
-                 <Image 
-  src={service.photo1} 
-  alt={service.name1}
-  width={48}
-  height={48}
-  className="object-contain"
-/>
+                  <img 
+                    src={service.photo1} 
+                    alt={service.name1}
+                    className="h-12 w-12 object-contain"
+                  />
                 ) : (
                   <div className="h-12 w-12 bg-gray-200 rounded-full flex items-center justify-center">
                     <span className="text-xs text-gray-500">لا يوجد صورة</span>
@@ -74,20 +81,7 @@ const ChildServicesList: React.FC<ChildServicesListProps> = ({ services, distanc
               
               <button 
                 className="w-full py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded text-xs flex items-center justify-center gap-1"
-                onClick={() => {
-                  // هنا يمكنك عرض تفاصيل السعر
-                  alert(`
-                    تفاصيل التسعير:
-                    - السعر الأولي: ${service.f_km} ل.س
-                    - سعر الكيلومتر: ${service.km} ل.س × ${distance.toFixed(1)} كم
-                    - سعر الدقيقة: ${service.m_cost} ل.س × ${duration.toFixed(0)} دقيقة
-                    - الإضافة المالية: ${service.add_cost} ل.س
-                    - الضريبة: ${service.tax} ل.س
-                    - الحسم: ${service.dis_cost} ل.س
-                    --------------------------
-                    الإجمالي: ${calculatePrice(service)} ل.س
-                  `);
-                }}
+                onClick={() => setSelectedService(service)}
               >
                 <FaInfoCircle className="text-xs" />
                 التفاصيل
@@ -96,7 +90,109 @@ const ChildServicesList: React.FC<ChildServicesListProps> = ({ services, distanc
           </motion.div>
         ))}
       </div>
+
+      {selectedService && (
+        <PricingDetailsModal
+          service={selectedService}
+          distance={distance}
+          duration={duration}
+          onClose={() => setSelectedService(null)}
+        />
+      )}
     </div>
+  );
+};
+
+
+//تفاصل الخدمة
+const PricingDetailsModal: React.FC<PricingDetailsModalProps> = ({ 
+  service, 
+  distance, 
+  duration, 
+  onClose 
+}) => {
+  const calculatePrice = (service: ChildService) => {
+    const firstKm = parseFloat(service.f_km) || 0;
+    const kmPrice = parseFloat(service.km) || 0;
+    const minutePrice = parseFloat(service.m_cost) || 0;
+    const additionalCost = parseFloat(service.add_cost) || 0;
+    const discount = parseFloat(service.dis_cost) || 0;
+    const tax = parseFloat(service.tax) || 0;
+    
+    const price = (firstKm + (kmPrice * distance) + (minutePrice * duration) + additionalCost + tax) - discount;
+    
+    return Math.max(0, price).toFixed(0);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        className="bg-white rounded-lg shadow-xl max-w-md w-full overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="bg-blue-600 p-4 text-white">
+          <h3 className="text-lg font-bold text-center">تفاصيل التسعير</h3>
+        </div>
+        
+        <div className="p-4">
+          <div className="flex justify-between items-center mb-3 border-b pb-2">
+            <span className="font-medium text-gray-700">الخدمة:</span>
+            <span className="font-bold">{service.name1}</span>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span>السعر الأولي:</span>
+              <span>{service.f_km} ل.س</span>
+            </div>
+            <div className="flex justify-between">
+              <span>سعر الكيلومتر:</span>
+              <span>{service.km} ل.س × {distance.toFixed(1)} كم</span>
+            </div>
+            <div className="flex justify-between">
+              <span>سعر الدقيقة:</span>
+              <span>{service.m_cost} ل.س × {duration.toFixed(0)} دقيقة</span>
+            </div>
+            <div className="flex justify-between">
+              <span>الإضافة المالية:</span>
+              <span>{service.add_cost} ل.س</span>
+            </div>
+            <div className="flex justify-between">
+              <span>الضريبة:</span>
+              <span>{service.tax} ل.س</span>
+            </div>
+            <div className="flex justify-between">
+              <span>الحسم:</span>
+              <span>-{service.dis_cost} ل.س</span>
+            </div>
+            
+            <div className="border-t border-gray-200 my-2 pt-2">
+              <div className="flex justify-between font-bold text-lg">
+                <span>الإجمالي:</span>
+                <span className="text-green-600">{calculatePrice(service)} ل.س</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-4 flex justify-center">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+            >
+              إغلاق
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 };
 
