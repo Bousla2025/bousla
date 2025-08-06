@@ -183,7 +183,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
           </div>
         )}
 
- // في جزء عرض الزر:
+{/* في جزء عرض الزر: */}
 {acceptStatus === 'loading' ? (
   <button className="w-full bg-blue-500 text-white py-2 rounded-lg font-bold text-lg flex justify-center items-center mt-2" disabled>
     <svg className="animate-spin h-5 w-5 mr-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
