@@ -1,6 +1,7 @@
 // types.ts
 export type Position = [number, number];
 
+
 export type Order = {
   id: number;
   user_id: number;

@@ -32,17 +32,14 @@ import {
 import { createCustomIcon, decodePolyline, extractMunicipality } from './mapUtils';
 import { 
   fetchData, fetchOrderById, updateOrderStatus, 
+  updateOrderStatus_new, 
   updateServiceStatus 
 } from './api';
 import { OrderDetailsModal } from './OrderDetailsModal';
 import { BetterLuckMessage } from './BetterLuckMessage';
 
 
-type OrderStatusResponse = {
-  success: boolean;
-  message?: string;
-  current_captain_id?: number;
-};
+
 
 
 
@@ -107,7 +104,8 @@ export default function CaptainApp() {
   const [selectedOrder, setSelectedOrder] = useState<OrderDetails | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
-  const [acceptOrderStatus, setAcceptOrderStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [acceptOrderStatus, setAcceptOrderStatus] = useState<'idle' |'goodluck' | 'loading' | 'success' | 'error'>('idle');
+  
 
   const captainId = 1;
   const mapRef = useRef<L.Map | null>(null);
@@ -256,70 +254,77 @@ const fetchPayments = useCallback(async () => {
   }, [currentLocation]);
 
 const openOrderDetails = useCallback(async (orderId: number) => {
-  console.log('Fetching order with ID:', orderId); // Debugging
+  console.log('Fetching order with ID:', orderId);
+  setAcceptOrderStatus('loading'); // تعيين الحالة إلى loading أثناء جلب البيانات
+  
   const order = await fetchOrderById(orderId);
   
   if (!order) {
     console.error('No order data received for ID:', orderId);
+    setAcceptOrderStatus('error');
     return;
   }
 
-    if (order) {
-      setSelectedOrder({
-        id: order.id,
-        ser_chi_id: order.ser_chi_id,
-        start_text: order.start_text,
-        end_text: order.end_text,
-        distance_km: order.distance_km,
-        duration_min: order.duration_min,
-        cost: order.cost,
-        user_rate: order.user_rate,
-        start_detlis: order.start_detlis,
-        end_detlis: order.end_detlis,
-        notes: order.notes || 'لا توجد ملاحظات'
-      });
-      setShowOrderDetails(true);
-      
-      if (order.start_point && order.end_point) {
-        drawRoute(order.start_point, order.end_point);
-      }
-    }
-  }, [drawRoute]);
+  setSelectedOrder({
+    id: order.id,
+    ser_chi_id: order.ser_chi_id,
+    start_text: order.start_text,
+    end_text: order.end_text,
+    distance_km: order.distance_km,
+    duration_min: order.duration_min,
+    cost: order.cost,
+    user_rate: order.user_rate,
+    start_detlis: order.start_detlis,
+    end_detlis: order.end_detlis,
+    notes: order.notes || 'لا توجد ملاحظات'
+  });
+  
+  setAcceptOrderStatus('idle'); // العودة إلى الحالة الأولية بعد تحميل البيانات
+  setShowOrderDetails(true);
+  
+  if (order.start_point && order.end_point) {
+    drawRoute(order.start_point, order.end_point);
+  }
+}, [drawRoute]);
+
+
 
 const handleAcceptOrder = useCallback(async () => {
-    if (!selectedOrder) return;
+  if (!selectedOrder) return;
 
-    setAcceptOrderStatus('loading');
-    
-    try {
-        const result = await updateOrderStatus(selectedOrder.id, captainId) as OrderStatusResponse;
-        
-        if (result.success) {
-            setAcceptOrderStatus('success');
-            setTimeout(() => {
-                setShowOrderDetails(false);
-                setAcceptOrderStatus('idle');
-            }, 1000);
-        } else {
-            // حالة عندما يكون الطلب محجوزاً مسبقاً
-            if ('current_captain_id' in result && result.current_captain_id) {
-                setAcceptOrderStatus('idle');
-                setTimeout(() => {
-                    setShowOrderDetails(false);
-                    setAcceptOrderStatus('idle');
-                    clearRoute();
-                    setShowMessage(true);
-                }, 1000);
-            } else {
-                setAcceptOrderStatus('error');
-                console.error('Error:', result.message || 'Unknown error');
-            }
-        }
-    } catch (error) {
-        setAcceptOrderStatus('error');
-        console.error('Error:', error instanceof Error ? error.message : 'Unknown error');
+  setAcceptOrderStatus('loading');
+
+  try {
+    const result = await updateOrderStatus_new(selectedOrder.id, captainId);
+    console.log(result)
+
+    if (result === 'success') {
+      // ✅ حالة النجاح
+      setAcceptOrderStatus('success');
+      setTimeout(() => {
+        setShowOrderDetails(false);
+        setAcceptOrderStatus('idle');
+        clearRoute();
+      }, 2000);
+    } else if (result === 'goodluck') {
+      // 🚫 حالة "محجوز مسبقاً"
+      setAcceptOrderStatus('goodluck');
+      setTimeout(() => {
+        setShowOrderDetails(false);
+        setAcceptOrderStatus('idle');
+        clearRoute();
+        setShowMessage(true);
+      }, 2000);
+    } else {
+      // ❌ حالة الخطأ
+      setAcceptOrderStatus('error');
     }
+  } catch (error) {
+    console.error('Error accepting order:', error);
+    setAcceptOrderStatus('error');
+  }
 }, [selectedOrder, captainId, clearRoute]);
+
 
   const handleServiceToggle = useCallback(async (service: Service) => {
     const newActive = service.active === 1 ? 0 : 1;
@@ -488,19 +493,17 @@ const handleAcceptOrder = useCallback(async () => {
         )}
 
         {showOrderDetails && selectedOrder && (
-          <OrderDetailsModal
-            order={selectedOrder}
-            onClose={() => {
-              setShowOrderDetails(false);
-              setAcceptOrderStatus('idle');
-              clearRoute();
-              
-            }}
-            
-            onAccept={handleAcceptOrder}
-            acceptStatus={acceptOrderStatus}
-          />
-        )}
+  <OrderDetailsModal
+    order={selectedOrder}
+    onClose={() => {
+      setShowOrderDetails(false);
+      setAcceptOrderStatus('idle');
+      clearRoute();
+    }}
+    onAccept={handleAcceptOrder}
+    acceptStatus={acceptOrderStatus} // ← هنا نمرر الحالة الصحيحة
+  />
+)}
 
         {showMessage && (
           <BetterLuckMessage onClose={() => setShowMessage(false)} />

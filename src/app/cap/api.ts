@@ -4,14 +4,29 @@ interface ApiResponse<T = unknown> {
   message?: string;
   data?: T;
   order?: Order; 
+  status?: 'success' | 'goodluck' | 'error';
+  current_captain_id?: number;
 }
 
 
+interface update_ApiResponse<T = unknown> {
+  success: boolean;
+  message?: string;
+  data?: T;
+  order?: Order; 
+  status?: 'success' | 'goodluck' | 'error';
+  current_captain_id?: number;
+}
 
-import { Console } from 'console';
+type OrderStatusResponse = {
+  status: 'success' | 'goodluck' | 'error';
+  message?: string;
+  current_captain_id?: number;
+};
+
 import { Order } from './types';
 
-
+// الدالة الأساسية لجلب البيانات
 export const fetchData = async <T = unknown>(
   endpoint: string,
   params: Record<string, string | number | boolean> = {},
@@ -31,7 +46,6 @@ export const fetchData = async <T = unknown>(
       options.body = new URLSearchParams(params as Record<string, string>).toString();
     }
 
-    // بناء URL بشكل صحيح مع وضع .php قبل Query Parameters
     const url = method === 'GET'
       ? `${baseUrl}/${endpoint}.php?${new URLSearchParams(params as Record<string, string>).toString()}`
       : `${baseUrl}/${endpoint}.php`;
@@ -61,12 +75,63 @@ export const fetchData = async <T = unknown>(
   }
 };
 
-// باقي الدوال تبقى كما هي بدون تغيير
+export const update_order_fetchData = async <T = unknown>(
+  endpoint: string,
+  params: Record<string, string | number | boolean> = {},
+  method: string = 'GET'
+): Promise<update_ApiResponse<T>> => {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://alrasekhooninlaw.com/bousla/cap';
+
+    const options: RequestInit = {
+      method,
+    };
+
+    if (method === 'POST') {
+      options.headers = {
+        'Content-Type': 'application/json',
+      };
+      options.body = JSON.stringify(params);
+    }
+
+    const url = method === 'GET'
+      ? `${baseUrl}/${endpoint}.php?${new URLSearchParams(params as Record<string, string>).toString()}`
+      : `${baseUrl}/${endpoint}.php`;
+
+    const response = await fetch(url, options);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    let errorMessage = 'An unknown error occurred';
+
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    } else if (typeof error === 'string') {
+      errorMessage = error;
+    }
+
+    console.error(`Error fetching ${endpoint}:`, error);
+    return {
+      success: false,
+      message: errorMessage
+    };
+  }
+};
+
+
+
+
+// دوال خاصة بالطلبات
 export const fetchOrderById = async (orderId: number): Promise<Order | null> => {
   try {
     const response = await fetchData('get_order', { id: orderId });
     
-    console.log('API Response:', response); // لأغراض debugging
+    console.log('API Response:', response);
     
     if (!response.success) {
       throw new Error(response.message || 'Failed to fetch order');
@@ -87,24 +152,43 @@ export const fetchOrderById = async (orderId: number): Promise<Order | null> => 
   }
 };
 
-export const updateOrderStatus = async (orderId: number, captainId: number) => {
+export const updateOrderStatus = async (
+  orderId: number, 
+  captainId: number
+): Promise<OrderStatusResponse> => {
   try {
-    const response = await fetchData('update_order_status', {
-      id: orderId.toString(),
-      cap_id: captainId.toString()
+    const response = await update_order_fetchData<OrderStatusResponse>('update_order_status', {
+      id: orderId,
+      cap_id: captainId
     }, 'POST');
 
-    if (!response.success) {
+    if (response.status === 'goodluck') {
+      return {
+        status: 'goodluck',
+        message: response.message,
+        current_captain_id: response.current_captain_id
+      };
+    }
+
+    if (response.status !== 'success') {
       throw new Error(response.message || 'Failed to update order status');
     }
 
-    return response;
+    return {
+      status: 'success',
+      message: response.message
+    };
   } catch (error) {
     console.error('Error updating order status:', error);
-    throw error;
+    return {
+      status: 'error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    };
   }
 };
 
+
+// دوال أخرى
 export const updateServiceStatus = async (serviceId: number, newActive: number) => {
   try {
     const response = await fetchData('cap_ser', {
@@ -122,3 +206,45 @@ export const updateServiceStatus = async (serviceId: number, newActive: number) 
     throw error;
   }
 };
+
+
+export async function updateOrderStatus_new(orderId: number, captainId: number) {
+  try {
+    const response = await fetch('https://alrasekhooninlaw.com/bousla/cap/update_order_status.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        id: orderId,
+        cap_id: captainId,
+      }),
+    });
+
+    const result = await response.json();
+   
+    
+
+    if (!response.ok || result.status === 'error') {
+      console.error('خطأ في العملية:', result.message);
+      return 'error';
+    }
+
+    if (result.status === 'goodluck') {
+      console.log('الطلب مأخوذ مسبقًا من قبل كابتن آخر:', result.current_captain_id);
+      return 'goodluck';
+    }
+
+    if (result.status === 'success') {
+      console.log('تم قبول الطلب بنجاح:', result);
+      return 'success';
+    }
+
+   
+
+    return 'error'; // fallback
+  } catch (err) {
+    console.error('استثناء أثناء الاتصال بالخادم:', err);
+    return 'error';
+  }
+}
