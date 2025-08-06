@@ -1,7 +1,7 @@
 // OrderDetailsModal.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { OrderDetails } from './types';
 
 interface OrderDetailsModalProps {
@@ -9,21 +9,50 @@ interface OrderDetailsModalProps {
   onClose: () => void;
   onAccept: () => Promise<void>;
   acceptStatus: 'idle' | 'loading' | 'success' | 'error';
+  errorMessage?: string;
 }
 
 export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   order,
   onClose,
   onAccept,
-  acceptStatus
+  acceptStatus,
+  errorMessage = 'حدث خطأ أثناء معالجة الطلب'
 }) => {
   const [expandedStart, setExpandedStart] = useState(false);
   const [expandedEnd, setExpandedEnd] = useState(false);
+  const [showError, setShowError] = useState(false);
+  const [countdown, setCountdown] = useState(5);
 
   const truncateText = (text: string, maxLength: number = 30) => {
     if (!text) return 'لا توجد تفاصيل';
     if (text.length <= maxLength || expandedStart || expandedEnd) return text;
     return `${text.substring(0, maxLength)}...`;
+  };
+
+  useEffect(() => {
+    if (acceptStatus === 'error') {
+      setShowError(true);
+      setCountdown(5);
+      
+      const timer = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            setShowError(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [acceptStatus]);
+
+  const handleRetry = async () => {
+    setShowError(false);
+    await onAccept();
   };
 
   return (
@@ -32,6 +61,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
         <button 
           onClick={onClose}
           className="text-gray-500 hover:text-gray-700"
+          aria-label="إغلاق"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -40,6 +70,33 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
       </div>
 
       <div className="px-4 pb-4">
+        {/* رسالة الخطأ */}
+        {showError && (
+          <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 rounded flex flex-col">
+            <div className="flex items-start">
+              <svg className="w-5 h-5 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              <div className="flex-1">
+                <div className="font-medium">حدث خطأ!</div>
+                <p className="mt-1 text-sm">{errorMessage}</p>
+                <div className="mt-1 text-xs text-red-600">
+                  سيتم إخفاء هذه الرسالة تلقائياً خلال {countdown} ثانية
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowError(false)}
+                className="text-red-500 hover:text-red-700 ml-2"
+                aria-label="إغلاق رسالة الخطأ"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center mb-3">
           <h3 className="flex-1 text-center text-xl font-bold text-red-500">
             {order.start_text} - {order.end_text}
@@ -146,7 +203,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
           </button>
         ) : acceptStatus === 'error' ? (
           <button
-            onClick={onAccept}
+            onClick={handleRetry}
             className="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-bold text-lg mt-2"
           >
             حاول مرة أخرى
