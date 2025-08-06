@@ -1,9 +1,8 @@
 // MapComponent.tsx
 'use client';
 
-import React, { useEffect } from 'react';
-import {  TileLayer, Marker, Popup, Polyline, Circle, useMap } from 'react-leaflet';
-import L from 'leaflet';
+import React, { useEffect, useState } from 'react';
+import { TileLayer, Marker, Popup, Polyline, Circle, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Position } from './types';
 import { createCustomIcon } from './mapUtils';
@@ -11,15 +10,11 @@ import { createCustomIcon } from './mapUtils';
 interface MapComponentProps {
   center: Position;
   zoom: number;
-  routePoints: Position[];
-  markers: {position: Position, icon: L.Icon, popup: string}[];
-  circleCenter: Position;
-  circleRadius: number;
-  onMapInit?: (map: L.Map) => void;
+  routePoints?: Position[];
+  markers?: {position: Position, icon: L.Icon, popup: string}[];
+  circleCenter?: Position;
+  circleRadius?: number;
 }
-
-//const startIcon = createCustomIcon('red');
-//const endIcon = createCustomIcon('green');
 
 const MapUpdater = ({ center, zoom }: { center: Position, zoom: number }) => {
   const map = useMap();
@@ -34,19 +29,18 @@ const MapUpdater = ({ center, zoom }: { center: Position, zoom: number }) => {
 export const MapComponent: React.FC<MapComponentProps> = ({
   center,
   zoom,
-  routePoints,
-  markers,
+  routePoints = [],
+  markers = [],
   circleCenter,
   circleRadius,
-  onMapInit
 }) => {
-  const mapRef = useMap();
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    if (mapRef && onMapInit) {
-      onMapInit(mapRef);
-    }
-  }, [mapRef, onMapInit]);
+    setIsClient(true);
+  }, []);
+
+  if (!isClient) return null;
 
   return (
     <>
@@ -74,12 +68,14 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         </Marker>
       ))}
       
-      <Circle
-        center={circleCenter}
-        radius={circleRadius}
-        color="red"
-        fillOpacity={0.1}
-      />
+      {circleCenter && circleRadius && (
+        <Circle
+          center={circleCenter}
+          radius={circleRadius}
+          color="red"
+          fillOpacity={0.1}
+        />
+      )}
     </>
   );
 };

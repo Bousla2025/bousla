@@ -1,15 +1,28 @@
 // CaptainApp.tsx
 'use client';
 
-import { 
-  useState, 
-  useEffect, 
-  useRef, 
-  useCallback, 
-  useMemo 
-} from 'react';
 import dynamic from 'next/dynamic';
-import { MapContainer } from 'react-leaflet';
+import { Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import 'leaflet/dist/leaflet.css';
+
+// استيراد المكونات الديناميكية
+const MapContainer = dynamic(
+  () => import('react-leaflet').then((mod) => mod.MapContainer),
+  { 
+    ssr: false,
+    loading: () => <div className="h-full w-full bg-gray-100" />
+  }
+);
+
+const MapComponent = dynamic(
+  () => import('./MapComponent').then((mod) => mod.MapComponent),
+  { 
+    ssr: false,
+    loading: () => <div className="h-full w-full bg-gray-100" />
+  }
+);
+
 import 'leaflet/dist/leaflet.css';
 import 'react-toastify/dist/ReactToastify.css';
 import { 
@@ -23,7 +36,9 @@ import {
 } from './api';
 import { OrderDetailsModal } from './OrderDetailsModal';
 import { BetterLuckMessage } from './BetterLuckMessage';
-import { MapComponent } from './MapComponent';
+
+
+
 
 // Dynamic imports for components that depend on window
 // استبدال الاستيرادات الديناميكية بهذا الشكل:
@@ -367,25 +382,25 @@ const handleAcceptOrder = useCallback(async () => {
       <main className="flex-1 relative">
         {/* Map */}
         <div className="absolute inset-0 z-0">
-          {typeof window !== 'undefined' && (
-            <MapContainer 
-              center={currentLocation || DEFAULT_POSITION} 
-              zoom={mapZoom} 
-              style={{ height: '100%', width: '100%' }}
-              zoomControl={false}
-              ref={mapRef}
-            >
-              <MapComponent 
-                center={currentLocation || DEFAULT_POSITION}
-                zoom={mapZoom}
-                routePoints={routePoints}
-                markers={markers}
-                circleCenter={circleCenter}
-                circleRadius={circleRadius}
-              />
-            </MapContainer>
-          )}
-        </div>
+  <Suspense fallback={<div className="h-full w-full bg-gray-100" />}>
+    <MapContainer 
+      center={currentLocation || DEFAULT_POSITION} 
+      zoom={mapZoom} 
+      style={{ height: '100%', width: '100%' }}
+      zoomControl={false}
+      ref={mapRef}
+    >
+      <MapComponent 
+        center={currentLocation || DEFAULT_POSITION}
+        zoom={mapZoom}
+        routePoints={routePoints}
+        markers={markers}
+        circleCenter={circleCenter}
+        circleRadius={circleRadius}
+      />
+    </MapContainer>
+  </Suspense>
+</div>
 
         {/* Floating Action Buttons */}
         <div className="absolute right-4 bottom-20 flex flex-col space-y-3 z-10">
