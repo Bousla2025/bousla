@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Service } from '../types';
+import Image from 'next/image';
 
 interface ServicesMenuProps {
   services: Service[];
@@ -31,14 +32,16 @@ export const ServicesMenu: React.FC<ServicesMenuProps> = ({
             {services.map(service => (
               <div key={service.id} className="bg-white p-4 rounded-lg shadow border border-gray-100 flex items-center justify-between">
                 <div className="flex items-center space-x-3 rtl:space-x-reverse">
-                  <img 
-                    src={service.photo1 || '/default-service.png'} 
-                    alt={service.name1}
-                    className="w-12 h-12 object-cover rounded-lg"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = '/default-service.png';
-                    }}
-                  />
+                  <Image 
+  src={service.photo1 || '/default-service.png'} 
+  alt={service.name1}
+  width={48}  // القيمة بالبكسل (مقابل w-12 في className)
+  height={48} // القيمة بالبكسل (مقابل h-12 في className)
+  className="object-cover rounded-lg"
+  onError={(e) => {
+    (e.target as HTMLImageElement).src = '/default-service.png';
+  }}
+/>
                   <div className="text-right">
                     <h3 className="font-medium text-gray-800">{service.name1}</h3>
                     <p className="text-sm text-gray-500">

@@ -1,24 +1,18 @@
 // api.ts
-interface ApiResponse {
+interface ApiResponse<T = unknown> {
   success: boolean;
   message?: string;
-  data?: any;
-    order?: Order; 
-}
-
-interface OrderApiResponse {
-  success: boolean;
-  message?: string;
-  order: Order;
+  data?: T;
+  order?: Order; 
 }
 
 import { Order } from './types';
 
-export const fetchData = async (
+export const fetchData = async <T = unknown>(
   endpoint: string,
-  params: Record<string, any> = {},
+  params: Record<string, string | number | boolean> = {},
   method: string = 'GET'
-): Promise<ApiResponse> => {
+): Promise<ApiResponse<T>> => {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://alrasekhooninlaw.com/bousla/cap';
     
@@ -30,12 +24,12 @@ export const fetchData = async (
       options.headers = {
         'Content-Type': 'application/x-www-form-urlencoded',
       };
-      options.body = new URLSearchParams(params).toString();
+      options.body = new URLSearchParams(params as Record<string, string>).toString();
     }
 
     // بناء URL بشكل صحيح مع وضع .php قبل Query Parameters
     const url = method === 'GET'
-      ? `${baseUrl}/${endpoint}.php?${new URLSearchParams(params).toString()}`
+      ? `${baseUrl}/${endpoint}.php?${new URLSearchParams(params as Record<string, string>).toString()}`
       : `${baseUrl}/${endpoint}.php`;
 
     const response = await fetch(url, options);
@@ -63,6 +57,7 @@ export const fetchData = async (
   }
 };
 
+// باقي الدوال تبقى كما هي بدون تغيير
 export const fetchOrderById = async (orderId: number): Promise<Order | null> => {
   try {
     const response = await fetchData('get_order', { id: orderId });

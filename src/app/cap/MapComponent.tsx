@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMap } from 'react-leaflet';
+import {  TileLayer, Marker, Popup, Polyline, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Position } from './types';
@@ -18,8 +18,8 @@ interface MapComponentProps {
   onMapInit?: (map: L.Map) => void;
 }
 
-const startIcon = createCustomIcon('red');
-const endIcon = createCustomIcon('green');
+//const startIcon = createCustomIcon('red');
+//const endIcon = createCustomIcon('green');
 
 const MapUpdater = ({ center, zoom }: { center: Position, zoom: number }) => {
   const map = useMap();

@@ -112,30 +112,32 @@ export default function CaptainApp() {
   }, []);
 
   // Callbacks
-  const fetchInitialData = useCallback(async () => {
-    try {
-      const servicesRes = await fetchData('cap_ser', { cap_id: captainId });
-      if (servicesRes.success) {
-        setServices(servicesRes.data || []);
-      }
-    } catch (error) {
-      console.error('Error fetching initial data:', error);
+ const fetchInitialData = useCallback(async () => {
+  try {
+    const servicesRes = await fetchData<Service[]>('cap_ser', { cap_id: captainId });
+    if (servicesRes.success) {
+      setServices(servicesRes.data || []);
     }
-  }, [captainId]);
+  } catch (error) {
+    console.error('Error fetching initial data:', error);
+  }
+}, [captainId]);
 
-  const fetchPayments = useCallback(async () => {
-    try {
-      setIsRefreshingPayments(true);
-      const response = await fetchData('get_cap_payment', { cap_id: captainId });
-      if (response.success) {
-        setPayments(response.data || []);
-      }
-    } catch (error) {
-      console.error('Error fetching payments:', error);
-    } finally {
-      setIsRefreshingPayments(false);
+const fetchPayments = useCallback(async () => {
+  try {
+    setIsRefreshingPayments(true);
+    const response = await fetchData<Payment[]>('get_cap_payment', { cap_id: captainId });
+    if (response.success) {
+      setPayments(response.data || []);
     }
-  }, [captainId]);
+  } catch (error) {
+    console.error('Error fetching payments:', error);
+  } finally {
+    setIsRefreshingPayments(false);
+  }
+}, [captainId]);
+
+  
 
   const setupLocationTracking = useCallback(() => {
     if (navigator.geolocation) {

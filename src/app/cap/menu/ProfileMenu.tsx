@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Profile } from '../types';
+import Image from 'next/image';
 
 interface ProfileMenuProps {
   profile: Profile;
@@ -35,14 +36,15 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
           <div className="text-center mt-4">
             <div className="w-24 h-24 bg-gray-300 rounded-full mx-auto mb-4 overflow-hidden">
               {profile.photo ? (
-                <img 
-                  src={profile.photo} 
-                  alt="Profile" 
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/default-avatar.png';
-                  }}
-                />
+                <Image 
+  src={profile.photo || '/default-avatar.png'} 
+  alt="Profile" 
+  fill
+  className="object-cover"
+  onError={(e) => {
+    (e.target as HTMLImageElement).src = '/default-avatar.png';
+  }}
+/>
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-3xl bg-blue-500 text-white">
                   {profile.name.charAt(0)}
