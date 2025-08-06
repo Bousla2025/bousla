@@ -6,6 +6,7 @@ interface ApiResponse<T = unknown> {
   order?: Order; 
 }
 
+import { Console } from 'console';
 import { Order } from './types';
 
 export const fetchData = async <T = unknown>(
@@ -108,6 +109,8 @@ export const updateOrderStatus = async (orderId: number, captainId: number): Pro
         return data;
     } catch (error) {
         console.error('Update order error:', error);
+        console.error('tamer');
+        
         return {
             status: 'error',
             message: error instanceof Error ? error.message : 'حدث خطأ غير متوقع'
