@@ -11,7 +11,11 @@ if (typeof window !== 'undefined') {
     L = leaflet;
     
     // Fix for default marker icons
-    delete (L.Icon.Default.prototype as any)._getIconUrl;
+    const defaultIconProto = L.Icon.Default.prototype as typeof L.Icon.Default.prototype & {
+      _getIconUrl?: string;
+    };
+    delete defaultIconProto._getIconUrl;
+    
     L.Icon.Default.mergeOptions({
       iconRetinaUrl: '/images/marker-icon-2x.png',
       iconUrl: '/images/marker-icon.png',
