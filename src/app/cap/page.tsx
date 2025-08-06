@@ -489,7 +489,9 @@ const handleAcceptOrder = useCallback(async () => {
               setShowOrderDetails(false);
               setAcceptOrderStatus('idle');
               clearRoute();
+              
             }}
+            
             onAccept={handleAcceptOrder}
             acceptStatus={acceptOrderStatus}
           />
