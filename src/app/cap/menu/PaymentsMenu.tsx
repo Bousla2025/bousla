@@ -53,7 +53,7 @@ export const PaymentsMenu: React.FC<PaymentsMenuProps> = ({
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('ar-SA', {
+    return date.toLocaleDateString('en-US', { // تغيير من 'ar-SA' إلى 'en-US' للتاريخ الميلادي
       day: 'numeric',
       month: 'long',
       year: 'numeric'
@@ -63,10 +63,32 @@ export const PaymentsMenu: React.FC<PaymentsMenuProps> = ({
   const formatMonth = (monthString: string) => {
     const [year, month] = monthString.split('-');
     const date = new Date(parseInt(year), parseInt(month) - 1);
-    return date.toLocaleDateString('ar-SA', {
+    return date.toLocaleDateString('en-US', { // تغيير من 'ar-SA' إلى 'en-US' للتاريخ الميلادي
       month: 'long',
       year: 'numeric'
     });
+  };
+
+  const formatNumber = (num: number) => {
+    return new Intl.NumberFormat('ar-SA', {
+      maximumFractionDigits: 0
+    }).format(num);
+  };
+
+  // حساب المجموع: المدفوعات - المسحوبات
+  const calculateTotal = () => {
+    let total = 0;
+    payments.forEach(payment => {
+      const typeInfo = getPaymentTypeInfo(payment.type1);
+      const amount = parseFloat(payment.mony);
+      
+      if (typeInfo.text === 'تسديد') {
+        total += amount;
+      } else if (typeInfo.text === 'سحب') {
+        total -= amount;
+      }
+    });
+    return total;
   };
 
   return (
@@ -129,7 +151,7 @@ export const PaymentsMenu: React.FC<PaymentsMenuProps> = ({
             {payments.length > 0 ? (
               payments.map(payment => {
                 const typeInfo = getPaymentTypeInfo(payment.type1);
-                const amount = parseFloat(payment.mony).toFixed(2);
+                const amount = parseFloat(payment.mony);
                 
                 return (
                   <div 
@@ -141,7 +163,7 @@ export const PaymentsMenu: React.FC<PaymentsMenuProps> = ({
                         {typeInfo.text}
                       </span>
                       <span className={`font-bold ${typeInfo.textColor}`}>
-                        {amount} ل.س
+                        {formatNumber(amount)} ل.س
                       </span>
                     </div>
                     
@@ -170,7 +192,7 @@ export const PaymentsMenu: React.FC<PaymentsMenuProps> = ({
           <div className="flex justify-between items-center">
             <span className="font-medium">المجموع:</span>
             <span className="font-bold text-lg">
-              {payments.reduce((sum, payment) => sum + parseFloat(payment.mony), 0).toFixed(2)} ل.س
+              {formatNumber(calculateTotal())} ل.س
             </span>
           </div>
         </div>

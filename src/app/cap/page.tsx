@@ -346,18 +346,7 @@ const handleAcceptOrder = useCallback(async () => {
             ☰
           </button>
 
-          <button 
-            onClick={() => updateZoneRadius(zoneRadius - 0.1)}
-            className="bg-blue-700 hover:bg-blue-800 text-white p-1 rounded-full w-8 h-8 flex items-center justify-center"
-          >
-            -
-          </button>
-          <button 
-            onClick={() => updateZoneRadius(zoneRadius + 0.1)}
-            className="bg-blue-700 hover:bg-blue-800 text-white p-1 rounded-full w-8 h-8 flex items-center justify-center"
-          >
-            +
-          </button>
+        
         </div>
         
         <h1 className="text-xl font-bold">كابتن بوصلة</h1>
