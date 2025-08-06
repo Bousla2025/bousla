@@ -84,36 +84,33 @@ export const fetchOrderById = async (orderId: number): Promise<Order | null> => 
   }
 };
 
-export const updateOrderStatus = async (orderId: number, captainId: number): Promise<{
-    status: 'success' | 'already_reserved' | 'error',
-    message?: string,
-    current_captain_id?: number
-}> => {
-    const formData = new FormData();
-    formData.append('id', orderId.toString());
-    formData.append('cap_id', captainId.toString());
-
+export const updateOrderStatus = async (orderId: number, captainId: number) => {
+    console.log('Sending request with:', { orderId, captainId });
+    
     try {
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/update_order_status.php`, {
             method: 'POST',
-            body: formData
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `id=${orderId}&cap_id=${captainId}`
         });
 
-        const data = await response.json();
+        console.log('Response status:', response.status);
         
-        // إذا كان الخادم يعيد حالة غير 200 ولكن مع بيانات صالحة
-        if (!response.ok && !data.status) {
+        const data = await response.json();
+        console.log('Response data:', data);
+        
+        if (!response.ok) {
             throw new Error(data.message || `HTTP error! status: ${response.status}`);
         }
 
         return data;
     } catch (error) {
         console.error('Update order error:', error);
-        console.error('tamer');
-        
         return {
             status: 'error',
-            message: error instanceof Error ? error.message : 'حدث خطأ غير متوقع'
+            message: error instanceof Error ? error.message : 'Unexpected error'
         };
     }
 };
