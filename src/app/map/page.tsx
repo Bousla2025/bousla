@@ -11,7 +11,21 @@ import { toast } from "react-hot-toast";
 import GlobeLoader from "../components/GlobeLoader";
 import ChildServicesList from "../components/ChildServicesList";
 
+
 type Coordinates = [number, number];
+
+interface ChildService {
+  id: number;
+  name1: string;
+  f_km: string;
+  km: string;
+  m_cost: string;
+  add_cost: string;
+  dis_cost: string;
+  photo1: string;
+  tax: string;
+  car_seats: string;
+}
 
 interface MapLocation {
   id?: string;
@@ -47,7 +61,8 @@ const MapOnlyPage: React.FC = () => {
   // Service data
   const [serviceId, setServiceId] = useState<number | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
-  
+  // جلب بيانات الخدمة المختارة
+const [chosenService, setChosenService] = useState<ChildService | null>(null);
   const defaultCoordinates: Coordinates = [33.5138, 36.2765];
   const [startPoint, setStartPoint] = useState<MapLocation | null>(null);
   const [endPoint, setEndPoint] = useState<MapLocation | null>(null);
@@ -270,14 +285,16 @@ const MapOnlyPage: React.FC = () => {
       );
       const data: SearchResult[] = await response.json();
       
-      if (data.length === 0) {
-        toast.error("لم يتم العثور على نتائج للبحث");
-      }
-      
       if (type === "start") {
         setStartSearchResults(data);
+        if (data.length === 0) {
+          toast.error("لم يتم العثور على نتائج للبحث عن مكان الانطلاق");
+        }
       } else {
         setEndSearchResults(data);
+        if (data.length === 0) {
+          toast.error("لم يتم العثور على نتائج للبحث عن مكان الوصول");
+        }
       }
     } catch (error) {
       console.error("Error searching locations:", error);
@@ -501,73 +518,92 @@ const MapOnlyPage: React.FC = () => {
     return parts[0].trim();
   };
 
-  const submitOrder = async () => {
-    if (!startPoint || !endPoint || !tripInfo || !serviceId || !userId) {
-      toast.error("الرجاء تحديد نقاط الانطلاق والوصول أولاً");
-      return;
+ const submitOrder = async () => {
+  if (!startPoint || !endPoint || !tripInfo || !serviceId || !userId || !chosenService) {
+    toast.error("الرجاء تحديد نقاط الانطلاق والوصول واختيار الخدمة أولاً");
+    return;
+  }
+
+  setIsSubmitting(true);
+  const loadingToast = toast.loading("جاري إرسال الطلب...");
+
+  try {
+    // حساب التكاليف بنفس طريقة العرض في الواجهة
+    const roundedDistance = Math.ceil(tripInfo.distance * 10) / 10;
+    const roundedDuration = Math.ceil(tripInfo.adjustedDuration);
+
+    const firstKm = parseFloat(chosenService.f_km) || 0;
+    const kmPrice = parseFloat(chosenService.km) || 0;
+    const minutePrice = parseFloat(chosenService.m_cost) || 0;
+    const additionalCost = parseFloat(chosenService.add_cost) || 0;
+    const discount = parseFloat(chosenService.dis_cost) || 0;
+    const tax = parseFloat(chosenService.tax) || 0;
+    
+    const firstKmCost = firstKm;
+    const distanceCost = kmPrice * roundedDistance;
+    const durationCost = minutePrice * roundedDuration;
+    const totalBeforeDiscount = firstKmCost + distanceCost + durationCost + additionalCost + tax;
+    const finalPrice = totalBeforeDiscount - discount;
+
+    const orderData = {
+      user_id: userId,
+      ser_chi_id: chosenService.id, 
+      start_point: `${startPoint.lat},${startPoint.lon}`,
+      start_text: getShortLocationName(startPoint.name.substring(0, 255)),
+      start_detlis: startPoint.name,
+      end_point: `${endPoint.lat},${endPoint.lon}`,
+      end_text: getShortLocationName(endPoint.name.substring(0, 255)),
+      end_detlis: endPoint.name,
+      distance_km: roundedDistance.toFixed(1),
+      duration_min: Math.round(roundedDuration),
+      status: "new_order",
+      start_time: new Date().toISOString(),
+      cost: Math.max(0, Math.ceil(finalPrice)).toString(),
+      km_price: (firstKmCost + distanceCost).toFixed(0),
+      min_price: durationCost.toFixed(0),
+      discount: discount.toFixed(0),
+      add1: (additionalCost + tax).toFixed(0)
+    };
+
+    const API_URL = 'https://alrasekhooninlaw.com/bousla/submit_order.php';
+
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(orderData)
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || 'فشل في إرسال الطلب');
     }
 
-    setIsSubmitting(true);
-    const loadingToast = toast.loading("جاري إرسال الطلب...");
-
-    try {
-      const orderData = {
-        user_id: userId,
-        ser_chi_id: serviceId,
-        start_point: `${startPoint.lat},${startPoint.lon}`,
-        start_text: getShortLocationName(startPoint.name.substring(0, 255)),
-        start_detlis: startPoint.name,
-        end_point: `${endPoint.lat},${endPoint.lon}`,
-        end_text: getShortLocationName(endPoint.name.substring(0, 255)),
-        end_detlis: endPoint.name,
-        distance_km: tripInfo.distance.toFixed(2),
-        duration_min: Math.round(tripInfo.adjustedDuration),
-        status: "new_order",
-        start_time: new Date().toISOString()
-      };
-
-      const API_URL = 'https://alrasekhooninlaw.com/bousla/submit_order.php';
-
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(orderData)
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || 'فشل في إرسال الطلب');
-      }
-
-      if (!result.order_id) {
-        throw new Error('لم يتم استلام رقم الطلب من الخادم');
-      }
-
-      toast.success(`تم إنشاء الطلب بنجاح! رقم الطلب: ${result.order_id}`, {
-        id: loadingToast,
-        duration: 5000
-      });
-
-      setStartPoint(null);
-      setEndPoint(null);
-      setTripInfo(null);
-
-    } catch (error) {
-      console.error("فشل إرسال الطلب:", error);
-      
-      const errorMessage = error instanceof Error ? error.message : "حدث خطأ أثناء إرسال الطلب";
-
-      toast.error(errorMessage, {
-        id: loadingToast,
-        duration: 5000
-      });
-    } finally {
-      setIsSubmitting(false);
+    if (!result.order_id) {
+      throw new Error('لم يتم استلام رقم الطلب من الخادم');
     }
-  };
+
+    toast.success(`تم إنشاء الطلب بنجاح! رقم الطلب: ${result.order_id}`, {
+      id: loadingToast,
+      duration: 5000
+    });
+
+    setStartPoint(null);
+    setEndPoint(null);
+    setTripInfo(null);
+    setChosenService(null);
+
+  } catch (error) {
+    console.error("فشل إرسال الطلب:", error);
+    const errorMessage = error instanceof Error ? error.message : "حدث خطأ أثناء إرسال الطلب";
+    toast.error(errorMessage, { id: loadingToast, duration: 5000 });
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
 
   useEffect(() => {
   if (!serviceId) return;
@@ -630,14 +666,15 @@ const MapOnlyPage: React.FC = () => {
     </h3>
     
     {childServices.length > 0 ? (
-      <ChildServicesList 
-        services={childServices}
-        distance={tripInfo.distance}
-        duration={tripInfo.adjustedDuration}
-      />
-    ) : (
-      <p className="text-center text-gray-500 py-4">جارٍ تحميل الخدمات المتاحة...</p>
-    )}
+  <ChildServicesList 
+    services={childServices}
+    distance={tripInfo.distance}
+    duration={tripInfo.adjustedDuration}
+    onServiceSelect={(service) => setChosenService(service)}
+  />
+) : (
+  <p className="text-center text-gray-500 py-4">جارٍ تحميل الخدمات المتاحة...</p>
+)}
   </motion.div>
 )}
 
@@ -699,6 +736,8 @@ const MapOnlyPage: React.FC = () => {
                         right: 0,
                         maxHeight: '300px'
                       }}
+
+                      
                     >
                       <div className="overflow-y-auto max-h-[300px]">
                         {startSearchResults.map((result, index) => (
@@ -726,6 +765,22 @@ const MapOnlyPage: React.FC = () => {
                       </div>
                     </motion.div>
                   )}
+
+                  {activeSearch === "start" && startSearchResults.length === 0 && startSearchQuery && !searching && (
+  <motion.div 
+    initial={{ opacity: 0, height: 0 }}
+    animate={{ opacity: 1, height: "auto" }}
+    className="absolute z-[9999] w-full mt-1 border border-gray-200 rounded-lg bg-white shadow-xl overflow-hidden text-right"
+    style={{
+      top: '100%',
+      right: 0,
+    }}
+  >
+    <div className="p-4 text-center text-gray-500">
+      لم يتم العثور على نتائج للبحث
+    </div>
+  </motion.div>
+)}
                 </motion.div>
                 
                 <motion.div 
@@ -805,6 +860,22 @@ const MapOnlyPage: React.FC = () => {
                       </div>
                     </motion.div>
                   )}
+
+                  {activeSearch === "end" && endSearchResults.length === 0 && endSearchQuery && !searching && (
+  <motion.div 
+    initial={{ opacity: 0, height: 0 }}
+    animate={{ opacity: 1, height: "auto" }}
+    className="absolute z-[9999] w-full mt-1 border border-gray-200 rounded-lg bg-white shadow-xl overflow-hidden text-right"
+    style={{
+      top: '100%',
+      right: 0,
+    }}
+  >
+    <div className="p-4 text-center text-gray-500">
+      لم يتم العثور على نتائج للبحث
+    </div>
+  </motion.div>
+)}
                 </motion.div>
               </div>
               
