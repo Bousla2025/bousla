@@ -72,7 +72,7 @@ const [chosenService, setChosenService] = useState<ChildService | null>(null);
   const [startSearchResults, setStartSearchResults] = useState<SearchResult[]>([]);
   const [endSearchResults, setEndSearchResults] = useState<SearchResult[]>([]);
   const [isSelectingOnMap, setIsSelectingOnMap] = useState(false);
-  const [childServices, setChildServices] = useState<any[]>([]);
+  const [childServices, setChildServices] = useState<ChildService[]>([]);
   const [tripInfo, setTripInfo] = useState<{
     distance: number;
     baseDuration: number;
