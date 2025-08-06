@@ -6,8 +6,11 @@ interface ApiResponse<T = unknown> {
   order?: Order; 
 }
 
+
+
 import { Console } from 'console';
 import { Order } from './types';
+
 
 export const fetchData = async <T = unknown>(
   endpoint: string,
@@ -85,34 +88,21 @@ export const fetchOrderById = async (orderId: number): Promise<Order | null> => 
 };
 
 export const updateOrderStatus = async (orderId: number, captainId: number) => {
-    console.log('Sending request with:', { orderId, captainId });
-    
-    try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/update_order_status.php`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: `id=${orderId}&cap_id=${captainId}`
-        });
+  try {
+    const response = await fetchData('update_order_status', {
+      id: orderId.toString(),
+      cap_id: captainId.toString()
+    }, 'POST');
 
-        console.log('Response status:', response.status);
-        
-        const data = await response.json();
-        console.log('Response data:', data);
-        
-        if (!response.ok) {
-            throw new Error(data.message || `HTTP error! status: ${response.status}`);
-        }
-
-        return data;
-    } catch (error) {
-        console.error('Update order error:', error);
-        return {
-            status: 'error',
-            message: error instanceof Error ? error.message : 'Unexpected error'
-        };
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to update order status');
     }
+
+    return response;
+  } catch (error) {
+    console.error('Error updating order status:', error);
+    throw error;
+  }
 };
 
 export const updateServiceStatus = async (serviceId: number, newActive: number) => {

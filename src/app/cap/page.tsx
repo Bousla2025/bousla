@@ -38,6 +38,12 @@ import { OrderDetailsModal } from './OrderDetailsModal';
 import { BetterLuckMessage } from './BetterLuckMessage';
 
 
+type OrderStatusResponse = {
+  success: boolean;
+  message?: string;
+  current_captain_id?: number;
+};
+
 
 
 // Dynamic imports for components that depend on window
@@ -285,34 +291,33 @@ const handleAcceptOrder = useCallback(async () => {
 
     setAcceptOrderStatus('loading');
     
-    const result = await updateOrderStatus(selectedOrder.id, captainId);
-    
-    switch (result.status) {
-        case 'success':
+    try {
+        const result = await updateOrderStatus(selectedOrder.id, captainId) as OrderStatusResponse;
+        
+        if (result.success) {
             setAcceptOrderStatus('success');
             setTimeout(() => {
                 setShowOrderDetails(false);
                 setAcceptOrderStatus('idle');
             }, 1000);
-            break;
-            
-        case 'already_reserved':
-            setAcceptOrderStatus('idle');
-            setTimeout(() => {
-                setShowOrderDetails(false);
+        } else {
+            // حالة عندما يكون الطلب محجوزاً مسبقاً
+            if ('current_captain_id' in result && result.current_captain_id) {
                 setAcceptOrderStatus('idle');
-                clearRoute();
-                setShowMessage(true);
-            }, 1000);
-            break;
-            
-        case 'error':
-            setAcceptOrderStatus('error');
-            console.error('Error:', result.message);
-            break;
-            
-        default:
-            setAcceptOrderStatus('idle');
+                setTimeout(() => {
+                    setShowOrderDetails(false);
+                    setAcceptOrderStatus('idle');
+                    clearRoute();
+                    setShowMessage(true);
+                }, 1000);
+            } else {
+                setAcceptOrderStatus('error');
+                console.error('Error:', result.message || 'Unknown error');
+            }
+        }
+    } catch (error) {
+        setAcceptOrderStatus('error');
+        console.error('Error:', error instanceof Error ? error.message : 'Unknown error');
     }
 }, [selectedOrder, captainId, clearRoute]);
 
