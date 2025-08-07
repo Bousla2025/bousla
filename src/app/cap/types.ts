@@ -96,6 +96,6 @@ export type Last_order = {
                     real_min:string, 
                     real_price:string, 
                     comp_percent:string, 
-                    start_time:String,
+                    start_time:string,
                     end_time:string
 };
