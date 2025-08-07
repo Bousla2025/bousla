@@ -34,12 +34,12 @@ export const LastOrdersMenu: React.FC<LastOrdersMenuProps> = ({
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('ar-SA');
+    return date.toLocaleDateString('en');
   };
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString('ar-SA', {hour: '2-digit', minute:'2-digit'});
+    return date.toLocaleTimeString('en', {hour: '2-digit', minute:'2-digit'});
   };
 
   return (
