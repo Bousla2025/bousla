@@ -248,3 +248,38 @@ export async function updateOrderStatus_new(orderId: number, captainId: number) 
     return 'error';
   }
 }
+
+export const fetchlast_order = async <T = unknown>(
+  endpoint: string,
+  params: Record<string, string | number | boolean> = {},
+  method: string = 'GET'
+): Promise<ApiResponse<T>> => {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://alrasekhooninlaw.com/bousla/cap';
+    
+    // تحويل جميع القيم إلى string
+    const processedParams = Object.fromEntries(
+      Object.entries(params).map(([key, value]) => 
+        [key, value.toString()] // تحويل أي قيمة إلى string
+      )
+    );
+
+    const url = `${baseUrl}/${endpoint}.php?${new URLSearchParams(processedParams as Record<string, string>).toString()}`;
+    
+    const response = await fetch(url, { method });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`Error fetching ${endpoint}:`, error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+};
+
+

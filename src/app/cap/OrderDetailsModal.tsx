@@ -98,10 +98,13 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
         )}
 
         <div className="flex items-center mb-3">
-          <h3 className="flex-1 text-center text-xl font-bold text-red-500">
-            {order.start_text} - {order.end_text}
-          </h3>
-        </div>
+  <h3 className="flex-1 text-center text-xl font-bold">
+    <span className="text-red-500">من:</span> 
+    <span className="text-gray-800"> {order.start_text} </span>
+    <span className="text-green-500">الى:</span> 
+    <span className="text-gray-800"> {order.end_text}</span>
+  </h3>
+</div>
 
         <div className="flex items-center mb-3">
           <span className="text-xl font-bold text-gray-600">نوع الطلب</span>
@@ -126,7 +129,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
               السعر: {order.cost} ل.س
             </div>
             <div className="flex-1 text-center text-sm font-sans text-black">
-              تقييم الزبون: 
+              تقييم العميل: 
               {Array(5).fill(0).map((_, i) => (
                 <span key={i} className={i < order.user_rate ? 'text-yellow-400' : 'text-gray-300'}>★</span>
               ))}

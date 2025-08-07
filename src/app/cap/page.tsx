@@ -27,13 +27,14 @@ import 'leaflet/dist/leaflet.css';
 import 'react-toastify/dist/ReactToastify.css';
 import { 
   Order, OrderDetails, Payment, Service, Position, 
-  Profile, TrackingData 
+  Profile, TrackingData, 
+  Last_order
 } from './types';
 import { createCustomIcon, decodePolyline, extractMunicipality } from './mapUtils';
 import { 
   fetchData, fetchOrderById, updateOrderStatus, 
   updateOrderStatus_new, 
-  updateServiceStatus 
+  updateServiceStatus,fetchlast_order
 } from './api';
 import { OrderDetailsModal } from './OrderDetailsModal';
 import { BetterLuckMessage } from './BetterLuckMessage';
@@ -73,6 +74,7 @@ export default function CaptainApp() {
   const [active, setActive] = useState(false);
   const [zoneRadius, setZoneRadius] = useState(2);
   const [orders, setOrders] = useState<Order[]>([]);
+   const [lastorder, setlastorder] = useState<Last_order[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [filterMonth, setFilterMonth] = useState<string | null>(null);
   const [services, setServices] = useState<Service[]>([]);
@@ -123,11 +125,23 @@ export default function CaptainApp() {
     ).sort().reverse();
   }, [payments]);
 
+  const fetchLastOrders = useCallback(async () => {
+  try {
+    const response = await fetchlast_order<Last_order[]>('get_lastorder', { cap_id: captainId });
+    if (response.success) {
+      setlastorder(response.data || []);
+    }
+  } catch (error) {
+    console.error('Error fetching last orders:', error);
+  }
+}, [captainId]);
+
   // Effects
   useEffect(() => {
     fetchInitialData();
     fetchPayments();
     setupLocationTracking();
+    fetchLastOrders();
   }, []);
 
   // Callbacks
@@ -486,7 +500,7 @@ const handleAcceptOrder = useCallback(async () => {
 
         {showLastOrders && (
           <DynamicLastOrdersMenu
-            orders={orders.filter(o => o.status === 'end')}
+            orders={lastorder}
             onClose={() => setShowLastOrders(false)}
             onOrderClick={openOrderDetails}
           />

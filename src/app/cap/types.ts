@@ -81,3 +81,21 @@ export type TrackingData = {
   time: string;
   price: string;
 };
+
+export type Last_order = {
+  id:number,
+                    ser_chi_id:number
+                    discount_id:string,
+                    start_point:string, 
+                    end_point:string, 
+                    start_text:string, 
+                    end_text:string, 
+                    accept_time:string, 
+                    
+                    real_km:string, 
+                    real_min:string, 
+                    real_price:string, 
+                    comp_percent:string, 
+                    start_time:String,
+                    end_time:string
+};
