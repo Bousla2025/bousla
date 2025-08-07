@@ -15,10 +15,25 @@ export const LastOrdersMenu: React.FC<LastOrdersMenuProps> = ({
   onClose,
   onOrderClick
 }) => {
-  const [timeFilter, setTimeFilter] = useState<'day' | 'week' | 'month'>('day');
+  const [timeFilter, setTimeFilter] = useState<'all' | 'day' | 'week' | 'month' | 'custom'>('day');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
 
   const filteredOrders = orders.filter(order => {
     const orderDate = new Date(order.start_time as string);
+    
+    if (timeFilter === 'all') return true;
+    
+    if (timeFilter === 'custom') {
+      if (!startDate || !endDate) return false;
+      
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999); // لتشمل نهاية اليوم
+      
+      return orderDate >= start && orderDate <= end;
+    }
+    
     const now = new Date();
     
     if (timeFilter === 'day') {
@@ -26,6 +41,7 @@ export const LastOrdersMenu: React.FC<LastOrdersMenuProps> = ({
     } else if (timeFilter === 'week') {
       const weekStart = new Date(now);
       weekStart.setDate(now.getDate() - now.getDay());
+      weekStart.setHours(0, 0, 0, 0);
       return orderDate >= weekStart;
     } else {
       return orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear();
@@ -56,7 +72,13 @@ export const LastOrdersMenu: React.FC<LastOrdersMenuProps> = ({
         </div>
         
         <div className="flex-1 overflow-y-auto p-4">
-          <div className="flex justify-around mb-4 bg-blue-50 p-2 rounded-lg">
+          <div className="flex flex-wrap justify-around mb-4 bg-blue-50 p-2 rounded-lg gap-2">
+            <button 
+              onClick={() => setTimeFilter('all')}
+              className={`px-3 py-1 rounded text-sm ${timeFilter === 'all' ? 'bg-blue-500 text-white' : 'bg-blue-100'}`}
+            >
+              الكل
+            </button>
             <button 
               onClick={() => setTimeFilter('day')}
               className={`px-3 py-1 rounded text-sm ${timeFilter === 'day' ? 'bg-blue-500 text-white' : 'bg-blue-100'}`}
@@ -75,7 +97,38 @@ export const LastOrdersMenu: React.FC<LastOrdersMenuProps> = ({
             >
               الشهر
             </button>
+            <button 
+              onClick={() => setTimeFilter('custom')}
+              className={`px-3 py-1 rounded text-sm ${timeFilter === 'custom' ? 'bg-blue-500 text-white' : 'bg-blue-100'}`}
+            >
+              مخصص
+            </button>
           </div>
+
+          {timeFilter === 'custom' && (
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+              <div className="flex flex-col gap-2">
+                <div>
+                  <label className="block text-sm font-medium mb-1">من تاريخ:</label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full p-2 border rounded"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">إلى تاريخ:</label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full p-2 border rounded"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
           
           <div className="space-y-3">
             {filteredOrders.length > 0 ? (

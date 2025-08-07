@@ -10,6 +10,7 @@ interface ProfileMenuProps {
   onShowServices: () => void;
   onShowPayments: () => void;
   onShowLastOrders: () => void;
+  onvertioal_order: ()=>void;
 }
 
 export const ProfileMenu: React.FC<ProfileMenuProps> = ({
@@ -17,7 +18,8 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
   onClose,
   onShowServices,
   onShowPayments,
-  onShowLastOrders
+  onShowLastOrders,
+  onvertioal_order
 }) => {
   return (
     <div className="absolute top-0 left-0 h-full w-3/4 max-w-sm bg-white z-30 shadow-xl transform transition-transform duration-300 ease-in-out">
@@ -72,11 +74,22 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
               <span className="text-gray-500">&gt;</span>
             </button>
 
+
+            
+
             <button 
               onClick={onShowLastOrders}
               className="w-full text-right py-3 border-b border-gray-200 flex justify-between items-center hover:bg-gray-100 px-2 rounded transition-colors"
             >
               <span className="text-gray-800">الطلبات السابقة</span>
+              <span className="text-gray-500">&gt;</span>
+            </button>
+
+            <button 
+              onClick={onvertioal_order}
+              className="w-full text-right py-3 border-b border-gray-200 flex justify-between items-center hover:bg-gray-100 px-2 rounded transition-colors"
+            >
+              <span className="text-gray-800">طلب افتراضي</span>
               <span className="text-gray-500">&gt;</span>
             </button>
 

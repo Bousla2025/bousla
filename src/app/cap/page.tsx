@@ -30,7 +30,8 @@ import {
   Profile, TrackingData, 
   Last_order
 } from './types';
-import { createCustomIcon, decodePolyline, extractMunicipality } from './mapUtils';
+import { createCustomIcon, decodePolyline, extractMunicipality, createCarIcon } from './mapUtils';
+
 import { 
   fetchData, fetchOrderById, updateOrderStatus, 
   updateOrderStatus_new, 
@@ -107,10 +108,15 @@ export default function CaptainApp() {
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
   const [acceptOrderStatus, setAcceptOrderStatus] = useState<'idle' |'goodluck' | 'loading' | 'success' | 'error'>('idle');
+  const [carMarker, setCarMarker] = useState<{position: Position, icon: L.Icon} | null>(null);
+
   
 
   const captainId = 1;
   const mapRef = useRef<L.Map | null>(null);
+
+
+  
 
   // Memoized values
   const filteredPayments = useMemo(() => {
@@ -136,13 +142,48 @@ export default function CaptainApp() {
   }
 }, [captainId]);
 
+//تتبع الموقع
+useEffect(() => {
+  if (navigator.geolocation) {
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const newLocation: Position = [position.coords.latitude, position.coords.longitude];
+        setCurrentLocation(newLocation);
+        setCircleCenter(newLocation);
+        setCarMarker({
+          position: newLocation,
+          icon: createCarIcon()
+        });
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+      },
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }
+}, []);
+
   // Effects
-  useEffect(() => {
-    fetchInitialData();
-    fetchPayments();
-    setupLocationTracking();
-    fetchLastOrders();
-  }, []);
+useEffect(() => {
+  fetchInitialData();
+  fetchPayments();
+  setupLocationTracking();
+  fetchLastOrders();
+  
+  // إضافة علامة السيارة الأولية إذا كان هناك موقع
+  if (currentLocation) {
+    setMarkers(prev => [
+      ...prev,
+      { 
+        position: currentLocation, 
+        icon: createCarIcon(),
+        popup: "موقعك الحالي"
+      }
+    ]);
+  }
+}, []);
 
   // Callbacks
  const fetchInitialData = useCallback(async () => {
@@ -172,23 +213,39 @@ const fetchPayments = useCallback(async () => {
 
   
 
-  const setupLocationTracking = useCallback(() => {
-    if (navigator.geolocation) {
-      const watchId = navigator.geolocation.watchPosition(
-        (position) => {
-          const newLocation: Position = [position.coords.latitude, position.coords.longitude];
-          setCurrentLocation(newLocation);
-          setCircleCenter(newLocation);
-        },
-        (error) => {
-          console.error('Geolocation error:', error);
-        },
-        { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
-      );
 
-      return () => navigator.geolocation.clearWatch(watchId);
-    }
-  }, []);
+ 
+const setupLocationTracking = useCallback(() => {
+  if (navigator.geolocation) {
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const newLocation: Position = [position.coords.latitude, position.coords.longitude];
+        setCurrentLocation(newLocation);
+        setCircleCenter(newLocation);
+        
+        // تحديث علامة السيارة عند تغيير الموقع
+        setMarkers(prev => {
+          // احتفظ بجميع العلامات ما عدا السيارة (إذا كانت موجودة)
+          const otherMarkers = prev.filter(m => m.popup !== "موقعك الحالي");
+          return [
+            ...otherMarkers,
+            { 
+              position: newLocation, 
+              icon: createCarIcon(),
+              popup: "موقعك الحالي"
+            }
+          ];
+        });
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+      },
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }
+}, []);
 
   const handleActivate = useCallback(() => {
     setActive(!active);
@@ -403,14 +460,21 @@ const handleAcceptOrder = useCallback(async () => {
       zoomControl={false}
       ref={mapRef}
     >
-      <MapComponent 
-        center={currentLocation || DEFAULT_POSITION}
-        zoom={mapZoom}
-        routePoints={routePoints}
-        markers={markers}
-        circleCenter={circleCenter}
-        circleRadius={circleRadius}
-      />
+     <MapComponent 
+  center={currentLocation || DEFAULT_POSITION}
+  zoom={mapZoom}
+  routePoints={routePoints}
+  markers={[
+    ...markers,
+    ...(carMarker ? [{
+      position: carMarker.position,
+      icon: carMarker.icon,
+      popup: "موقعك الحالي"
+    }] : [])
+  ]}
+  circleCenter={circleCenter}
+  circleRadius={circleRadius}
+/>
     </MapContainer>
   </Suspense>
 </div>
@@ -472,8 +536,13 @@ const handleAcceptOrder = useCallback(async () => {
             onShowLastOrders={() => {
               setShowLastOrders(true);
               setShowProfile(false);
-              openOrderDetails(1);
+              
             }}
+            onvertioal_order={() =>{
+              openOrderDetails(1);
+              setShowProfile(false)
+            }
+            }
           />
         )}
 
