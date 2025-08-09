@@ -143,33 +143,13 @@ export default function CaptainApp() {
 }, [captainId]);
 
 //تتبع الموقع
-useEffect(() => {
-  if (navigator.geolocation) {
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const newLocation: Position = [position.coords.latitude, position.coords.longitude];
-        setCurrentLocation(newLocation);
-        setCircleCenter(newLocation);
-        setCarMarker({
-          position: newLocation,
-          icon: createCarIcon()
-        });
-      },
-      (error) => {
-        console.error('Geolocation error:', error);
-      },
-      { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
-    );
 
-    return () => navigator.geolocation.clearWatch(watchId);
-  }
-}, []);
 
   // Effects
 useEffect(() => {
   fetchInitialData();
   fetchPayments();
-  setupLocationTracking();
+//  setupLocationTracking();
   fetchLastOrders();
   
   // إضافة علامة السيارة الأولية إذا كان هناك موقع
