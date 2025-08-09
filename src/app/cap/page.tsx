@@ -149,7 +149,7 @@ export default function CaptainApp() {
 useEffect(() => {
   fetchInitialData();
   fetchPayments();
-//  setupLocationTracking();
+  //setupLocationTracking();
   fetchLastOrders();
   
   // إضافة علامة السيارة الأولية إذا كان هناك موقع
@@ -195,37 +195,7 @@ const fetchPayments = useCallback(async () => {
 
 
  
-const setupLocationTracking = useCallback(() => {
-  if (navigator.geolocation) {
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const newLocation: Position = [position.coords.latitude, position.coords.longitude];
-        setCurrentLocation(newLocation);
-        setCircleCenter(newLocation);
-        
-        // تحديث علامة السيارة عند تغيير الموقع
-        setMarkers(prev => {
-          // احتفظ بجميع العلامات ما عدا السيارة (إذا كانت موجودة)
-          const otherMarkers = prev.filter(m => m.popup !== "موقعك الحالي");
-          return [
-            ...otherMarkers,
-            { 
-              position: newLocation, 
-              icon: createCarIcon(),
-              popup: "موقعك الحالي"
-            }
-          ];
-        });
-      },
-      (error) => {
-        console.error('Geolocation error:', error);
-      },
-      { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
-    );
 
-    return () => navigator.geolocation.clearWatch(watchId);
-  }
-}, []);
 
   const handleActivate = useCallback(() => {
     setActive(!active);
