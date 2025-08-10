@@ -5,13 +5,18 @@ import { Position } from './types';
 
 let L: typeof import('leaflet') | null = null;
 
-// دالة لضمان تحميل Leaflet بشكل صحيح
+// تعريف واجهة مخصصة لـ Icon.Default.prototype
+interface DefaultIconPrototype {
+  _getIconUrl?: string;
+}
+
 const ensureLeafletLoaded = async () => {
   if (typeof window !== 'undefined' && !L) {
     L = await import('leaflet');
     
-    // حل مشكلة أيقونات Leaflet الافتراضية
-    delete (L.Icon.Default.prototype as any)._getIconUrl;
+    // حل مشكلة أيقونات Leaflet الافتراضية بدون استخدام any
+    const defaultIconProto = L.Icon.Default.prototype as DefaultIconPrototype;
+    delete defaultIconProto._getIconUrl;
     
     L.Icon.Default.mergeOptions({
       iconRetinaUrl: '/images/marker-icon-2x.png',
