@@ -124,10 +124,14 @@ useEffect(() => {
   // تعريف دالة استقبال الموقع من Kotlin
   window.updateLocation = (lat: number, lng: number) => {
     const newLocation: Position = [lat, lng];
+    
+    // تحديث حالة الموقع الحالي
     setCurrentLocation(newLocation);
+    
+    // تحديث مركز الدائرة
     setCircleCenter(newLocation);
     
-    // تحديث موقع السيارة إذا كانت الأيقونات جاهزة
+    // تحديث موقع السيارة فقط
     if (icons.carIcon) {
       setCarMarker({
         position: newLocation,
@@ -135,18 +139,14 @@ useEffect(() => {
       });
     }
     
-    // تحديث مركز الخريطة إذا كانت نشطة
-    if (active && mapRef.current) {
-      mapRef.current.flyTo(newLocation);
-    }
+    // إزالة أي كود يقوم بتغيير مركز الخريطة أو مستوى zoom تلقائياً
+    // لا تستخدم mapRef.current.flyTo() أو setView() هنا
   };
 
-  // تنظيف الدالة عند إلغاء التثبيت
   return () => {
     window.updateLocation = () => {};
   };
-}, [active, icons.carIcon]);
-  
+}, [icons.carIcon]); // تأكد من إزالة active من dependencies إذا كان موجوداً
   // تحميل الأيقونات عند بدء التحميل
   useEffect(() => {
     const loadIcons = async () => {
