@@ -77,7 +77,7 @@ export default function CaptainApp() {
     price: "0.0"
   });
   const [showNewOrder, setShowNewOrder] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
+  const [showProfile, setShowProfile] = useState(true);
   const [showPayments, setShowPayments] = useState(false);
   const [showServices, setShowServices] = useState(false);
   const [showLastOrders, setShowLastOrders] = useState(false);
