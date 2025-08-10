@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { TileLayer, Marker, Popup, Polyline, Circle, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Position } from './types';
-import { createCustomIcon } from './mapUtils';
+import { createCustomIcon, createCarIcon } from './mapUtils';
 
 interface MapComponentProps {
   center: Position;
@@ -35,9 +35,24 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   circleRadius,
 }) => {
   const [isClient, setIsClient] = useState(false);
+  const [markerIcons, setMarkerIcons] = useState<{[key: string]: L.Icon}>({});
 
   useEffect(() => {
     setIsClient(true);
+    
+    // تحميل الأيقونات عند التهيئة
+    const loadIcons = async () => {
+      const icons: {[key: string]: L.Icon} = {};
+      
+      // يمكنك إضافة أيقونات أخرى هنا حسب الحاجة
+      icons['car'] = await createCarIcon();
+      icons['red'] = await createCustomIcon('red');
+      icons['green'] = await createCustomIcon('green');
+      
+      setMarkerIcons(icons);
+    };
+    
+    loadIcons();
   }, []);
 
   if (!isClient) return null;
@@ -63,7 +78,11 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       )}
       
       {markers.map((marker, index) => (
-        <Marker key={index} position={marker.position} icon={marker.icon}>
+        <Marker 
+          key={index} 
+          position={marker.position} 
+          icon={markerIcons[marker.icon as unknown as string] || marker.icon}
+        >
           <Popup>{marker.popup}</Popup>
         </Marker>
       ))}

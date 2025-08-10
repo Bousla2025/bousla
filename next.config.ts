@@ -29,5 +29,7 @@ const nextConfig: NextConfig = {
   },
 };
 
+
+
 // تصدير واحد فقط
 export default nextConfig;

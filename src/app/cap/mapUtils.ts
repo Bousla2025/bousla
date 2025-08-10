@@ -1,29 +1,35 @@
 // mapUtils.ts
 'use client';
 
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { Position } from './types';
 
-// إصلاح أيقونات العلامات الافتراضية
-const fixLeafletIcons = () => {
-  const defaultIcon = L.Icon.Default.prototype;
-  
-  // @ts-expect-error - نحتاج لحذف الخاصية المؤقتة
-  delete defaultIcon._getIconUrl;
-  
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: '/images/marker-icon-2x.png',
-    iconUrl: '/images/marker-icon.png',
-    shadowUrl: '/images/marker-shadow.png',
-  });
+let L: typeof import('leaflet') | null = null;
+
+// دالة لضمان تحميل Leaflet بشكل صحيح
+const ensureLeafletLoaded = async () => {
+  if (typeof window !== 'undefined' && !L) {
+    L = await import('leaflet');
+    
+    // حل مشكلة أيقونات Leaflet الافتراضية
+    delete (L.Icon.Default.prototype as any)._getIconUrl;
+    
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: '/images/marker-icon-2x.png',
+      iconUrl: '/images/marker-icon.png',
+      shadowUrl: '/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+    });
+  }
+  return L;
 };
 
-// استدعاء الإصلاح مرة واحدة عند التحميل
-if (typeof window !== 'undefined') {
-  fixLeafletIcons();
-}
-
-export const createCustomIcon = (color: string): L.Icon => {
+export const createCustomIcon = async (color: string) => {
+  const L = await ensureLeafletLoaded();
+  if (!L) return {} as L.Icon;
+  
   return new L.Icon({
     iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
       `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}">
@@ -36,7 +42,10 @@ export const createCustomIcon = (color: string): L.Icon => {
   });
 };
 
-export const createCarIcon = (): L.Icon => {
+export const createCarIcon = async () => {
+  const L = await ensureLeafletLoaded();
+  if (!L) return {} as L.Icon;
+  
   return new L.Icon({
     iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
       `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#3B82F6">
@@ -51,7 +60,9 @@ export const createCarIcon = (): L.Icon => {
   });
 };
 
-export const decodePolyline = (encoded: string): {lat: number, lng: number}[] => {
+
+
+export const decodePolyline = (encoded: string) => {
   const poly: {lat: number, lng: number}[] = [];
   let index = 0, lat = 0, lng = 0;
   const len = encoded.length;
@@ -84,7 +95,7 @@ export const decodePolyline = (encoded: string): {lat: number, lng: number}[] =>
   return poly;
 };
 
-export const extractMunicipality = (text: string): string => {
+export const extractMunicipality = (text: string) => {
   if (!text) return 'غير محدد';
   if (text.includes("بلدية")) {
     return text.split("بلدية")[1].split(",")[0].trim();

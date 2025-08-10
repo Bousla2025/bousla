@@ -5,18 +5,26 @@ import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import 'leaflet/dist/leaflet.css';
-
-// استيراد المكونات الديناميكية
+import 'react-toastify/dist/ReactToastify.css';
+import { 
+  Order, OrderDetails, Payment, Service, Position, 
+  Profile, TrackingData, Last_order
+} from './types';
+import { createCustomIcon, decodePolyline, extractMunicipality, createCarIcon } from './mapUtils';
+import { 
+  fetchData, fetchOrderById, updateOrderStatus, 
+  updateOrderStatus_new, 
+  updateServiceStatus, fetchlast_order
+} from './api';
+import { OrderDetailsModal } from './OrderDetailsModal';
+import { BetterLuckMessage } from './BetterLuckMessage';
 
 const MapContainer = dynamic(
   () => import('react-leaflet').then((mod) => mod.MapContainer),
   { 
     ssr: false,
     loading: () => <div className="h-full w-full bg-gray-100" />
-  }
-);
-
-
+  });
 
 const MapComponent = dynamic(
   () => import('./MapComponent').then((mod) => mod.MapComponent),
@@ -25,31 +33,6 @@ const MapComponent = dynamic(
     loading: () => <div className="h-full w-full bg-gray-100" />
   }
 );
-
-import 'leaflet/dist/leaflet.css';
-import 'react-toastify/dist/ReactToastify.css';
-import { 
-  Order, OrderDetails, Payment, Service, Position, 
-  Profile, TrackingData, 
-  Last_order
-} from './types';
-import { createCustomIcon, decodePolyline, extractMunicipality, createCarIcon } from './mapUtils';
-
-import { 
-  fetchData, fetchOrderById, updateOrderStatus, 
-  updateOrderStatus_new, 
-  updateServiceStatus,fetchlast_order
-} from './api';
-import { OrderDetailsModal } from './OrderDetailsModal';
-import { BetterLuckMessage } from './BetterLuckMessage';
-
-
-
-
-
-
-// Dynamic imports for components that depend on window
-// استبدال الاستيرادات الديناميكية بهذا الشكل:
 
 const DynamicProfileMenu = dynamic(
   () => import('./menu/ProfileMenu').then((mod) => mod.ProfileMenu),
@@ -78,7 +61,7 @@ export default function CaptainApp() {
   const [active, setActive] = useState(false);
   const [zoneRadius, setZoneRadius] = useState(2);
   const [orders, setOrders] = useState<Order[]>([]);
-   const [lastorder, setlastorder] = useState<Last_order[]>([]);
+  const [lastorder, setlastorder] = useState<Last_order[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [filterMonth, setFilterMonth] = useState<string | null>(null);
   const [services, setServices] = useState<Service[]>([]);
@@ -111,15 +94,43 @@ export default function CaptainApp() {
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
   const [acceptOrderStatus, setAcceptOrderStatus] = useState<'idle' |'goodluck' | 'loading' | 'success' | 'error'>('idle');
-  const [carMarker, setCarMarker] = useState<{position: Position, icon: L.Icon} | null>(null);
-
-  
+  // في جزء state declarations في CaptainApp.tsx
+const [carMarker, setCarMarker] = useState<{
+  position: Position;
+  icon: L.Icon;
+} | null>(null);
+  // حالة جديدة للأيقونات
+  const [icons, setIcons] = useState<{
+    carIcon: L.Icon | null,
+    redIcon: L.Icon | null,
+    greenIcon: L.Icon | null
+  }>({
+    carIcon: null,
+    redIcon: null,
+    greenIcon: null
+  });
 
   const captainId = 1;
   const mapRef = useRef<L.Map | null>(null);
 
+  // تحميل الأيقونات عند بدء التحميل
+  useEffect(() => {
+    const loadIcons = async () => {
+      const [carIcon, redIcon, greenIcon] = await Promise.all([
+        createCarIcon(),
+        createCustomIcon('red'),
+        createCustomIcon('green')
+      ]);
+      
+      setIcons({
+        carIcon,
+        redIcon,
+        greenIcon
+      });
+    };
 
-  
+    loadIcons();
+  }, []);
 
   // Memoized values
   const filteredPayments = useMemo(() => {
@@ -135,82 +146,69 @@ export default function CaptainApp() {
   }, [payments]);
 
   const fetchLastOrders = useCallback(async () => {
-  try {
-    const response = await fetchlast_order<Last_order[]>('get_lastorder', { cap_id: captainId });
-    if (response.success) {
-      setlastorder(response.data || []);
+    try {
+      const response = await fetchlast_order<Last_order[]>('get_lastorder', { cap_id: captainId });
+      if (response.success) {
+        setlastorder(response.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching last orders:', error);
     }
-  } catch (error) {
-    console.error('Error fetching last orders:', error);
-  }
-}, [captainId]);
-
-//تتبع الموقع
-
+  }, [captainId]);
 
   // Effects
-useEffect(() => {
-  fetchInitialData();
-  fetchPayments();
-  //setupLocationTracking();
-  fetchLastOrders();
-  
-  // إضافة علامة السيارة الأولية إذا كان هناك موقع
-  if (currentLocation) {
-    setMarkers(prev => [
-      ...prev,
-      { 
-        position: currentLocation, 
-        icon: createCarIcon(),
-        popup: "موقعك الحالي"
-      }
-    ]);
+  useEffect(() => {
+    fetchInitialData();
+    fetchPayments();
+    fetchLastOrders();
+    
+    // إضافة علامة السيارة عند توفر الموقع والأيقونات
+    if (currentLocation && icons.carIcon) {
+    setCarMarker({
+      position: currentLocation,
+      icon: icons.carIcon as L.Icon
+    });
   }
-}, []);
+}, [icons.carIcon]);
 
   // Callbacks
- const fetchInitialData = useCallback(async () => {
-  try {
-    const servicesRes = await fetchData<Service[]>('cap_ser', { cap_id: captainId });
-    if (servicesRes.success) {
-      setServices(servicesRes.data || []);
+  const fetchInitialData = useCallback(async () => {
+    try {
+      const servicesRes = await fetchData<Service[]>('cap_ser', { cap_id: captainId });
+      if (servicesRes.success) {
+        setServices(servicesRes.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching initial data:', error);
     }
-  } catch (error) {
-    console.error('Error fetching initial data:', error);
-  }
-}, [captainId]);
+  }, [captainId]);
 
-const fetchPayments = useCallback(async () => {
-  try {
-    setIsRefreshingPayments(true);
-    const response = await fetchData<Payment[]>('get_cap_payment', { cap_id: captainId });
-    if (response.success) {
-      setPayments(response.data || []);
+  const fetchPayments = useCallback(async () => {
+    try {
+      setIsRefreshingPayments(true);
+      const response = await fetchData<Payment[]>('get_cap_payment', { cap_id: captainId });
+      if (response.success) {
+        setPayments(response.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching payments:', error);
+    } finally {
+      setIsRefreshingPayments(false);
     }
-  } catch (error) {
-    console.error('Error fetching payments:', error);
-  } finally {
-    setIsRefreshingPayments(false);
-  }
-}, [captainId]);
-
-  
-
-
- 
-
+  }, [captainId]);
 
   const handleActivate = useCallback(() => {
     setActive(!active);
   }, [active]);
 
   const clearRoute = useCallback(() => {
-    setRoutePoints([]);
-    setMarkers([]);
-  }, []);
+  setRoutePoints([]);
+  setMarkers([]);
+  setCarMarker(null);
+}, []);
 
   const drawRoute = useCallback(async (startPoint: string, endPoint: string) => {
-    if (!startPoint || !endPoint) {
+    if (!startPoint || !endPoint || !icons.redIcon || !icons.greenIcon) {
       clearRoute();
       return;
     }
@@ -249,20 +247,19 @@ const fetchPayments = useCallback(async () => {
       setMarkers([
         { 
           position: [startLat, startLng], 
-          icon: createCustomIcon('red'),
+          icon: icons.redIcon as L.Icon,
           popup: "نقطة الانطلاق"
         },
         { 
           position: [endLat, endLng], 
-          icon: createCustomIcon('green'),
+          icon: icons.greenIcon as L.Icon,
           popup: "نقطة الوصول"
-        }
-      ]);
+    }]);
       
     } catch (error) {
       console.error('Error calculating route:', error);
     }
-  }, [clearRoute]);
+  }, [clearRoute, icons.redIcon, icons.greenIcon]);
 
   const updateZoneRadius = useCallback((radius: number) => {
     const newRadius = Math.max(0.2, Math.min(5, radius));
@@ -277,78 +274,72 @@ const fetchPayments = useCallback(async () => {
     }
   }, [currentLocation]);
 
-const openOrderDetails = useCallback(async (orderId: number) => {
-  console.log('Fetching order with ID:', orderId);
-  setAcceptOrderStatus('loading'); // تعيين الحالة إلى loading أثناء جلب البيانات
-  
-  const order = await fetchOrderById(orderId);
-  
-  if (!order) {
-    console.error('No order data received for ID:', orderId);
-    setAcceptOrderStatus('error');
-    return;
-  }
+  const openOrderDetails = useCallback(async (orderId: number) => {
+    console.log('Fetching order with ID:', orderId);
+    setAcceptOrderStatus('loading');
+    
+    const order = await fetchOrderById(orderId);
+    
+    if (!order) {
+      console.error('No order data received for ID:', orderId);
+      setAcceptOrderStatus('error');
+      return;
+    }
 
-  setSelectedOrder({
-    id: order.id,
-    ser_chi_id: order.ser_chi_id,
-    start_text: order.start_text,
-    end_text: order.end_text,
-    distance_km: order.distance_km,
-    duration_min: order.duration_min,
-    cost: order.cost,
-    user_rate: order.user_rate,
-    start_detlis: order.start_detlis,
-    end_detlis: order.end_detlis,
-    notes: order.notes || 'لا توجد ملاحظات'
-  });
-  
-  setAcceptOrderStatus('idle'); // العودة إلى الحالة الأولية بعد تحميل البيانات
-  setShowOrderDetails(true);
-  
-  if (order.start_point && order.end_point) {
-    drawRoute(order.start_point, order.end_point);
-  }
-}, [drawRoute]);
+    setSelectedOrder({
+      id: order.id,
+      ser_chi_id: order.ser_chi_id,
+      start_text: order.start_text,
+      end_text: order.end_text,
+      distance_km: order.distance_km,
+      duration_min: order.duration_min,
+      cost: order.cost,
+      user_rate: order.user_rate,
+      start_detlis: order.start_detlis,
+      end_detlis: order.end_detlis,
+      notes: order.notes || 'لا توجد ملاحظات'
+    });
+    
+    setAcceptOrderStatus('idle');
+    setShowOrderDetails(true);
+    
+    if (order.start_point && order.end_point) {
+      drawRoute(order.start_point, order.end_point);
+    }
+  }, [drawRoute]);
 
+  const handleAcceptOrder = useCallback(async () => {
+    if (!selectedOrder) return;
 
+    setAcceptOrderStatus('loading');
 
-const handleAcceptOrder = useCallback(async () => {
-  if (!selectedOrder) return;
+    try {
+      const result = await updateOrderStatus_new(selectedOrder.id, captainId);
+      console.log(result)
 
-  setAcceptOrderStatus('loading');
-
-  try {
-    const result = await updateOrderStatus_new(selectedOrder.id, captainId);
-    console.log(result)
-
-    if (result === 'success') {
-      // ✅ حالة النجاح
-      setAcceptOrderStatus('success');
-      setTimeout(() => {
-        setShowOrderDetails(false);
-        setAcceptOrderStatus('idle');
-        clearRoute();
-      }, 2000);
-    } else if (result === 'goodluck') {
-      // 🚫 حالة "محجوز مسبقاً"
-      setAcceptOrderStatus('goodluck');
-      setTimeout(() => {
-        setShowOrderDetails(false);
-        setAcceptOrderStatus('idle');
-        clearRoute();
-        setShowMessage(true);
-      }, 2000);
-    } else {
-      // ❌ حالة الخطأ
+      if (result === 'success') {
+        setAcceptOrderStatus('success');
+        setTimeout(() => {
+          setShowOrderDetails(false);
+          setAcceptOrderStatus('idle');
+          clearRoute();
+        }, 2000);
+      } else if (result === 'goodluck') {
+        setAcceptOrderStatus('goodluck');
+        setTimeout(() => {
+          setShowOrderDetails(false);
+          setAcceptOrderStatus('idle');
+          clearRoute();
+          setShowMessage(true);
+        }, 2000);
+      } else {
+        setAcceptOrderStatus('error');
+      }
+    } catch (error) {
+      console.error('Error accepting order:', error);
       setAcceptOrderStatus('error');
     }
-  } catch (error) {
-    console.error('Error accepting order:', error);
-    setAcceptOrderStatus('error');
-  }
-}, [selectedOrder, captainId, clearRoute]);
-
+  }, [selectedOrder, captainId, clearRoute]);
 
   const handleServiceToggle = useCallback(async (service: Service) => {
     const newActive = service.active === 1 ? 0 : 1;
@@ -368,6 +359,7 @@ const handleAcceptOrder = useCallback(async () => {
     }
   }, []);
 
+  
   return (
     <div className="flex flex-col h-screen bg-gray-100">
       {/* Header */}
@@ -406,6 +398,7 @@ const handleAcceptOrder = useCallback(async () => {
         {/* Map */}
         <div className="absolute inset-0 z-0">
   <Suspense fallback={<div className="h-full w-full bg-gray-100" />}>
+
     <MapContainer 
       center={currentLocation || DEFAULT_POSITION} 
       zoom={mapZoom} 
@@ -413,6 +406,7 @@ const handleAcceptOrder = useCallback(async () => {
       zoomControl={false}
       ref={mapRef}
     >
+
      <MapComponent 
   center={currentLocation || DEFAULT_POSITION}
   zoom={mapZoom}
