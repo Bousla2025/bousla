@@ -1,22 +1,27 @@
 // MapComponent.tsx
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { TileLayer, Marker, Popup, Polyline, Circle, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Position } from './types';
-import { createCustomIcon } from './mapUtils';
+
 
 interface MapComponentProps {
   center: Position;
   zoom: number;
   routePoints?: Position[];
-  markers?: {position: Position, icon: L.Icon, popup: string}[];
+  markers?: {
+    position: Position;
+    icon: L.Icon;
+    popup: string;
+  }[];
   circleCenter?: Position;
   circleRadius?: number;
 }
 
-const MapUpdater = ({ center, zoom }: { center: Position, zoom: number }) => {
+const MapUpdater = ({ center, zoom }: { center: Position; zoom: number }) => {
   const map = useMap();
 
   useEffect(() => {
@@ -34,14 +39,23 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   circleCenter,
   circleRadius,
 }) => {
-  const [isClient, setIsClient] = useState(false);
+  const map = useMap();
 
   useEffect(() => {
-    setIsClient(true);
+    // إصلاح أيقونات Leaflet عند التحميل
+    const defaultIcon = L.Icon.Default.prototype;
+    
+    // @ts-expect-error - الخاصية غير موجودة في الأنواع لكنها موجودة فعليًا
+    delete defaultIcon._getIconUrl;
+    
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: '/images/marker-icon-2x.png',
+      iconUrl: '/images/marker-icon.png',
+      shadowUrl: '/images/marker-shadow.png',
+    });
   }, []);
 
-  if (!isClient) return null;
-
+  
   return (
     <>
       <TileLayer
@@ -63,7 +77,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       )}
       
       {markers.map((marker, index) => (
-        <Marker key={index} position={marker.position} icon={marker.icon}>
+        <Marker key={`marker-${index}`} position={marker.position} icon={marker.icon}>
           <Popup>{marker.popup}</Popup>
         </Marker>
       ))}

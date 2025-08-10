@@ -7,6 +7,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import 'leaflet/dist/leaflet.css';
 
 // استيراد المكونات الديناميكية
+
 const MapContainer = dynamic(
   () => import('react-leaflet').then((mod) => mod.MapContainer),
   { 
@@ -14,6 +15,8 @@ const MapContainer = dynamic(
     loading: () => <div className="h-full w-full bg-gray-100" />
   }
 );
+
+
 
 const MapComponent = dynamic(
   () => import('./MapComponent').then((mod) => mod.MapComponent),
