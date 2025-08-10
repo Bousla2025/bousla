@@ -56,6 +56,12 @@ const DynamicLastOrdersMenu = dynamic(
 
 const DEFAULT_POSITION: Position = [33.5138, 36.2765];
 
+declare global {
+  interface Window {
+    updateLocation: (lat: number, lng: number) => void;
+  }
+}
+
 export default function CaptainApp() {
   // State
   const [active, setActive] = useState(false);
@@ -94,8 +100,6 @@ export default function CaptainApp() {
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
   const [acceptOrderStatus, setAcceptOrderStatus] = useState<'idle' |'goodluck' | 'loading' | 'success' | 'error'>('idle');
-  const [watchId, setWatchId] = useState<number | null>(null); // لتخزين معرف متعقب الموقع
-
   // في جزء state declarations في CaptainApp.tsx
 const [carMarker, setCarMarker] = useState<{
   position: Position;
@@ -115,6 +119,34 @@ const [carMarker, setCarMarker] = useState<{
   const captainId = 1;
   const mapRef = useRef<L.Map | null>(null);
 
+  // داخل مكون CaptainApp، أضف useEffect لاستقبال الموقع
+useEffect(() => {
+  // تعريف دالة استقبال الموقع من Kotlin
+  window.updateLocation = (lat: number, lng: number) => {
+    const newLocation: Position = [lat, lng];
+    setCurrentLocation(newLocation);
+    setCircleCenter(newLocation);
+    
+    // تحديث موقع السيارة إذا كانت الأيقونات جاهزة
+    if (icons.carIcon) {
+      setCarMarker({
+        position: newLocation,
+        icon: icons.carIcon
+      });
+    }
+    
+    // تحديث مركز الخريطة إذا كانت نشطة
+    if (active && mapRef.current) {
+      mapRef.current.flyTo(newLocation);
+    }
+  };
+
+  // تنظيف الدالة عند إلغاء التثبيت
+  return () => {
+    window.updateLocation = () => {};
+  };
+}, [active, icons.carIcon]);
+  
   // تحميل الأيقونات عند بدء التحميل
   useEffect(() => {
     const loadIcons = async () => {
@@ -157,91 +189,6 @@ const [carMarker, setCarMarker] = useState<{
       console.error('Error fetching last orders:', error);
     }
   }, [captainId]);
-
-  // دالة لتحديد الموقع الحالي
-const getCurrentLocation = useCallback(() => {
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        const newLocation: Position = [latitude, longitude];
-        setCurrentLocation(newLocation);
-        setCircleCenter(newLocation);
-        
-        // تحديث موقع السيارة إذا كانت الأيقونات جاهزة
-        if (icons.carIcon) {
-          setCarMarker({
-            position: newLocation,
-            icon: icons.carIcon
-          });
-        }
-        
-        // تحديث مركز الخريطة
-        if (mapRef.current) {
-          mapRef.current.flyTo(newLocation);
-        }
-      },
-      (error) => {
-        console.error('Error getting location:', error);
-        // استخدام الموقع الافتراضي في حالة الخطأ
-        setCurrentLocation(DEFAULT_POSITION);
-        setCircleCenter(DEFAULT_POSITION);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 5000,
-        maximumAge: 0
-      }
-    );
-  } else {
-    console.error('Geolocation is not supported by this browser.');
-    setCurrentLocation(DEFAULT_POSITION);
-    setCircleCenter(DEFAULT_POSITION);
-  }
-}, [icons.carIcon]);
-
-// دالة لبدء تتبع الموقع
-const startTrackingLocation = useCallback(() => {
-  if (navigator.geolocation) {
-    const id = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        const newLocation: Position = [latitude, longitude];
-        setCurrentLocation(newLocation);
-        setCircleCenter(newLocation);
-        
-        // تحديث موقع السيارة
-        if (icons.carIcon) {
-          setCarMarker({
-            position: newLocation,
-            icon: icons.carIcon
-          });
-        }
-      },
-      (error) => {
-        console.error('Error watching location:', error);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 5000,
-        maximumAge: 0
-      }
-    );
-    setWatchId(id);
-  } else {
-    console.error('Geolocation is not supported by this browser.');
-  }
-}, [icons.carIcon]);
-
-// دالة لإيقاف تتبع الموقع
-const stopTrackingLocation = useCallback(() => {
-  if (watchId && navigator.geolocation) {
-    navigator.geolocation.clearWatch(watchId);
-    setWatchId(null);
-  }
-}, [watchId]);
-
-
 
   // Effects
   useEffect(() => {
@@ -445,29 +392,6 @@ const stopTrackingLocation = useCallback(() => {
       console.error('Failed to update service:', error);
     }
   }, []);
-
-  // Effect لبدء وإيقاف التتبع عند تفعيل/إلغاء تفعيل الحالة
-useEffect(() => {
-  if (active) {
-    getCurrentLocation();
-    startTrackingLocation();
-  } else {
-    stopTrackingLocation();
-  }
-
-  return () => {
-    stopTrackingLocation();
-  };
-}, [active, getCurrentLocation, startTrackingLocation, stopTrackingLocation]);
-
-// Effect للحصول على الموقع الأولي عند تحميل المكون
-useEffect(() => {
-  getCurrentLocation();
-  
-  return () => {
-    stopTrackingLocation();
-  };
-}, [getCurrentLocation, stopTrackingLocation]);
 
   
   return (
