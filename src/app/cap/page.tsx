@@ -17,7 +17,8 @@ import {
   updateServiceStatus, fetchlast_order
 } from './api';
 import { OrderDetailsModal } from './OrderDetailsModal';
-import { BetterLuckMessage } from './BetterLuckMessage';
+import { BetterLuckMessage } from './BetterLuckMessage';3
+import { OrdersStack } from './OrdersStack';
 
 const MapContainer = dynamic(
   () => import('react-leaflet').then((mod) => mod.MapContainer),
@@ -102,6 +103,7 @@ export default function CaptainApp() {
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
   const [acceptOrderStatus, setAcceptOrderStatus] = useState<'idle' |'goodluck' | 'loading' | 'success' | 'error'>('idle');
+  const [currentOrders, setCurrentOrders] = useState<OrderDetails[]>([]);
   // في جزء state declarations في CaptainApp.tsx
 const [carMarker, setCarMarker] = useState<{
   position: Position;
@@ -301,31 +303,18 @@ useEffect(() => {
   }, [clearRoute, icons.redIcon, icons.greenIcon]);
 
   // استقبال الطلبات من كوتلن
-  useEffect(() => {
-  // تعريف دالة استقبال الطلبات من Kotlin
+useEffect(() => {
   window.handleNewOrder = async (orderId: number) => {
-    console.log('Received new order ID:', orderId);
-    
     try {
-      // جلب تفاصيل الطلب من API
       const order = await fetchOrderById(orderId);
-      
       if (order) {
-        setSelectedOrder({
-          id: order.id,
-          ser_chi_id: order.ser_chi_id,
-          start_text: order.start_text,
-          end_text: order.end_text,
-          distance_km: order.distance_km,
-          duration_min: order.duration_min,
-          cost: order.cost,
-          user_rate: order.user_rate,
-          start_detlis: order.start_detlis,
-          end_detlis: order.end_detlis,
-          notes: order.notes || 'لا توجد ملاحظات'
+        setCurrentOrders(prev => {
+          // تجنب تكرار الطلبات
+          if (prev.some(o => o.id === order.id)) return prev;
+          
+          // حفظ آخر 3 طلبات فقط
+          return [order, ...prev].slice(0, 3);
         });
-        
-        setShowOrderDetails(true);
         
         if (order.start_point && order.end_point) {
           drawRoute(order.start_point, order.end_point);
@@ -337,10 +326,10 @@ useEffect(() => {
   };
 
   return () => {
-    // تنظيف الدالة عند إلغاء التثبيت
     window.handleNewOrder = () => {};
   };
 }, [drawRoute]);
+
 
   const updateZoneRadius = useCallback((radius: number) => {
     const newRadius = Math.max(0.2, Math.min(5, radius));
@@ -389,38 +378,30 @@ useEffect(() => {
     }
   }, [drawRoute]);
 
-  const handleAcceptOrder = useCallback(async () => {
-    if (!selectedOrder) return;
-
-    setAcceptOrderStatus('loading');
-
-    try {
-      const result = await updateOrderStatus_new(selectedOrder.id, captainId);
-      console.log(result)
-
-      if (result === 'success') {
-        setAcceptOrderStatus('success');
-        setTimeout(() => {
-          setShowOrderDetails(false);
-          setAcceptOrderStatus('idle');
-          clearRoute();
-        }, 2000);
-      } else if (result === 'goodluck') {
-        setAcceptOrderStatus('goodluck');
-        setTimeout(() => {
-          setShowOrderDetails(false);
-          setAcceptOrderStatus('idle');
-          clearRoute();
-          setShowMessage(true);
-        }, 2000);
-      } else {
-        setAcceptOrderStatus('error');
-      }
-    } catch (error) {
-      console.error('Error accepting order:', error);
-      setAcceptOrderStatus('error');
+ const handleAcceptOrder = async (orderId: number) => {
+  setAcceptOrderStatus('loading');
+  
+  try {
+    const result = await updateOrderStatus_new(orderId, captainId);
+    if (result === 'success') {
+      setAcceptOrderStatus('success');
+      setTimeout(() => {
+        setCurrentOrders(prev => prev.filter(o => o.id !== orderId));
+        setAcceptOrderStatus('idle');
+      }, 2000);
+    } else if (result === 'goodluck') {
+      setAcceptOrderStatus('goodluck');
+      setTimeout(() => {
+        setCurrentOrders(prev => prev.filter(o => o.id !== orderId));
+        setAcceptOrderStatus('idle');
+        setShowMessage(true);
+      }, 2000);
     }
-  }, [selectedOrder, captainId, clearRoute]);
+  } catch (error) {
+    setAcceptOrderStatus('error');
+  }
+};
+
 
   const handleServiceToggle = useCallback(async (service: Service) => {
     const newActive = service.active === 1 ? 0 : 1;
@@ -603,22 +584,21 @@ useEffect(() => {
           />
         )}
 
-        {showOrderDetails && selectedOrder && (
-  <OrderDetailsModal
-    order={selectedOrder}
-    onClose={() => {
-      setShowOrderDetails(false);
-      setAcceptOrderStatus('idle');
-      clearRoute();
-    }}
+  {currentOrders.length > 0 && (
+  <OrdersStack
+    orders={currentOrders}
     onAccept={handleAcceptOrder}
-    acceptStatus={acceptOrderStatus} // ← هنا نمرر الحالة الصحيحة
+    onClose={(orderId) => {
+      setCurrentOrders(prev => prev.filter(o => o.id !== orderId));
+      if (currentOrders.length === 1) clearRoute();
+    }}
+    acceptStatus={acceptOrderStatus}
   />
 )}
 
-        {showMessage && (
-          <BetterLuckMessage onClose={() => setShowMessage(false)} />
-        )}
+{showMessage && (
+  <BetterLuckMessage onClose={() => setShowMessage(false)} />
+)}
       </main>
     </div>
   );
