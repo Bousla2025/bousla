@@ -59,6 +59,8 @@ const DEFAULT_POSITION: Position = [33.5138, 36.2765];
 declare global {
   interface Window {
     updateLocation: (lat: number, lng: number) => void;
+        handleNewOrder: (orderId: number) => void;
+
   }
 }
 
@@ -147,6 +149,9 @@ useEffect(() => {
     window.updateLocation = () => {};
   };
 }, [icons.carIcon]); // تأكد من إزالة active من dependencies إذا كان موجوداً
+
+
+
   // تحميل الأيقونات عند بدء التحميل
   useEffect(() => {
     const loadIcons = async () => {
@@ -294,6 +299,48 @@ useEffect(() => {
       console.error('Error calculating route:', error);
     }
   }, [clearRoute, icons.redIcon, icons.greenIcon]);
+
+  // استقبال الطلبات من كوتلن
+  useEffect(() => {
+  // تعريف دالة استقبال الطلبات من Kotlin
+  window.handleNewOrder = async (orderId: number) => {
+    console.log('Received new order ID:', orderId);
+    
+    try {
+      // جلب تفاصيل الطلب من API
+      const order = await fetchOrderById(orderId);
+      
+      if (order) {
+        setSelectedOrder({
+          id: order.id,
+          ser_chi_id: order.ser_chi_id,
+          start_text: order.start_text,
+          end_text: order.end_text,
+          distance_km: order.distance_km,
+          duration_min: order.duration_min,
+          cost: order.cost,
+          user_rate: order.user_rate,
+          start_detlis: order.start_detlis,
+          end_detlis: order.end_detlis,
+          notes: order.notes || 'لا توجد ملاحظات'
+        });
+        
+        setShowOrderDetails(true);
+        
+        if (order.start_point && order.end_point) {
+          drawRoute(order.start_point, order.end_point);
+        }
+      }
+    } catch (error) {
+      console.error('Error handling new order:', error);
+    }
+  };
+
+  return () => {
+    // تنظيف الدالة عند إلغاء التثبيت
+    window.handleNewOrder = () => {};
+  };
+}, [drawRoute]);
 
   const updateZoneRadius = useCallback((radius: number) => {
     const newRadius = Math.max(0.2, Math.min(5, radius));
