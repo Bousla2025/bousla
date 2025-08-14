@@ -1,4 +1,4 @@
-// أولا: قم بإضافة هذا المكون الجديد في ملف جديد باسم OrdersStack.tsx
+// OrdersStack.tsx
 import { OrderDetails } from './types';
 
 interface OrdersStackProps {
@@ -20,7 +20,7 @@ export const OrdersStack = ({
         <div 
           key={order.id}
           className={`bg-white rounded-lg shadow-xl border border-gray-300 transition-all duration-300 ${
-            index !== 0 ? 'opacity-80 -mt-16' : ''
+            index !== 0 ? 'opacity-90 -mt-16' : ''
           }`}
           style={{
             transform: `scale(${1 - index * 0.05})`,
@@ -54,26 +54,30 @@ export const OrdersStack = ({
               <span>التكلفة: {order.cost} ل.س</span>
             </div>
 
-            {acceptStatus === 'loading' && index === 0 ? (
-              <button className="w-full bg-blue-500 text-white py-2 rounded-lg font-bold flex justify-center items-center" disabled>
-                جاري المعالجة...
-              </button>
-            ) : acceptStatus === 'success' && index === 0 ? (
-              <button className="w-full bg-green-500 text-white py-2 rounded-lg font-bold" disabled>
-                تم القبول بنجاح ✓
-              </button>
-            ) : acceptStatus === 'goodluck' && index === 0 ? (
-              <button className="w-full bg-yellow-500 text-white py-2 rounded-lg font-bold" disabled>
-                محجوز مسبقاً
-              </button>
-            ) : index === 0 ? (
-              <button 
-                onClick={() => onAccept(order.id)}
-                className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-bold"
-              >
-                قبول الطلب
-              </button>
-            ) : null}
+            {index === 0 && (
+              <>
+                {acceptStatus === 'loading' ? (
+                  <button className="w-full bg-blue-500 text-white py-2 rounded-lg font-bold flex justify-center items-center" disabled>
+                    جاري المعالجة...
+                  </button>
+                ) : acceptStatus === 'success' ? (
+                  <button className="w-full bg-green-500 text-white py-2 rounded-lg font-bold" disabled>
+                    تم القبول بنجاح ✓
+                  </button>
+                ) : acceptStatus === 'goodluck' ? (
+                  <button className="w-full bg-yellow-500 text-white py-2 rounded-lg font-bold" disabled>
+                    محجوز مسبقاً
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => onAccept(order.id)}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-bold"
+                  >
+                    قبول الطلب
+                  </button>
+                )}
+              </>
+            )}
           </div>
         </div>
       ))}
