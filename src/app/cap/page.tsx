@@ -60,6 +60,8 @@ declare global {
   interface Window {
     updateLocation: (lat: number, lng: number) => void;
         handleNewOrder: (orderId: number) => void;
+            setCaptainProfile: (profileData: {name: string, phone: string, photo: string}) => void;
+
 
   }
 }
@@ -355,6 +357,29 @@ useEffect(() => {
     window.handleNewOrder = () => {};
   };
 }, [drawRoute]);
+
+/////استقبال بيانات الكابتن من كوتلن
+useEffect(() => {
+  // تعريف دالة استقبال الملف الشخصي من Kotlin
+  window.setCaptainProfile = (profileData: {
+    name: string;
+    phone: string;
+    photo: string;
+  }) => {
+    setProfile({
+      name: profileData.name,
+      phone: profileData.phone,
+      photo: profileData.photo
+    });
+  };
+
+  return () => {
+    // تنظيف الدالة عند إلغاء التثبيت
+    (window as any).setCaptainProfile = undefined;
+  };
+}, []);
+
+
 
 
   const openOrderDetails = useCallback(async (orderId: number) => {
