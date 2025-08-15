@@ -59,10 +59,14 @@ const DEFAULT_POSITION: Position = [33.5138, 36.2765];
 declare global {
   interface Window {
     updateLocation: (lat: number, lng: number) => void;
-        handleNewOrder: (orderId: number) => void;
-        
-  getCaptainProfile: () => void;
-    onCaptainProfileReceived: (profileData: {name: string, phone: string, photo: string}) => void;
+    handleNewOrder: (orderId: number) => void;
+    setCaptainProfile?: (profileData: {name: string, phone: string, photo: string}) => void;
+    getCaptainProfile?: () => void;
+    onCaptainProfileReceived?: (profileData: {name: string, phone: string, photo: string}) => void;
+    onCaptainProfileError?: (error: string) => void;
+    Android?: {
+      getCaptainProfile: () => void;
+    };
   }
 }
 
@@ -360,15 +364,8 @@ useEffect(() => {
 
 /////استقبال بيانات الكابتن من كوتلن
 useEffect(() => {
-  const fetchCaptainProfile = () => {
-    if (window.getCaptainProfile) {
-      // إرسال طلب للحصول على بيانات الكابتن
-      window.getCaptainProfile();
-    }
-  };
-
-  // تعريف دالة لاستقبال الرد من Kotlin
-  window.onCaptainProfileReceived = (profileData: {
+  // تعريف دالة الاستجابة
+  const handleProfileReceived = (profileData: {
     name: string;
     phone: string;
     photo: string;
@@ -380,10 +377,32 @@ useEffect(() => {
     });
   };
 
-  fetchCaptainProfile();
+  // تسجيل الدالة على window
+  window.onCaptainProfileReceived = handleProfileReceived;
+
+  // تعريف دالة الطلب
+  const requestCaptainProfile = () => {
+    if (window.Android?.getCaptainProfile) {
+      window.Android.getCaptainProfile();
+    } else if (window.getCaptainProfile) {
+      window.getCaptainProfile();
+    } else {
+      // الطريقة البديلة إذا لم تكن الدوال متاحة
+      window.setCaptainProfile?.({
+        name: "اسم افتراضي",
+        phone: "000000000",
+        photo: ""
+      });
+    }
+  };
+
+  // طلب البيانات عند التحميل
+  requestCaptainProfile();
 
   return () => {
-    (window as any).onCaptainProfileReceived = undefined;
+    // تنظيف الدوال عند إلغاء التثبيت
+    delete window.onCaptainProfileReceived;
+    delete window.getCaptainProfile;
   };
 }, []);
 
