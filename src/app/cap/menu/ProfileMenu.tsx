@@ -1,3 +1,4 @@
+//ProfileMenu.tsx
 'use client';
 
 import React from 'react';
@@ -10,7 +11,7 @@ interface ProfileMenuProps {
   onShowServices: () => void;
   onShowPayments: () => void;
   onShowLastOrders: () => void;
-  onvertioal_order: ()=>void;
+  onvertioal_order: () => void;
 }
 
 export const ProfileMenu: React.FC<ProfileMenuProps> = ({
@@ -36,25 +37,29 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
         
         <div className="flex-1 overflow-y-auto p-4">
           <div className="text-center mt-4">
-            <div className="w-24 h-24 bg-gray-300 rounded-full mx-auto mb-4 overflow-hidden">
+            <div className="w-24 h-24 bg-gray-300 rounded-full mx-auto mb-4 overflow-hidden relative">
               {profile.photo ? (
                 <Image 
-  src={profile.photo || '/default-avatar.png'} 
-  alt="Profile" 
-  fill
-  className="object-cover"
-  onError={(e) => {
-    (e.target as HTMLImageElement).src = '/default-avatar.png';
-  }}
-/>
+                  src={profile.photo}
+                  alt="صورة الكابتن"
+                  width={96}
+                  height={96}
+                  className="object-cover"
+                  onError={(e) => {
+                    // Fallback to default avatar if image fails to load
+                    const target = e.target as HTMLImageElement;
+                    target.src = '/default-avatar.png';
+                    target.onerror = null; // Prevent infinite loop
+                  }}
+                />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-3xl bg-blue-500 text-white">
-                  {profile.name.charAt(0)}
+                  {profile.name?.charAt(0) || 'ك'}
                 </div>
               )}
             </div>
-            <h2 className="text-xl font-bold">{profile.name}</h2>
-            <p className="text-gray-600">{profile.phone}</p>
+            <h2 className="text-xl font-bold">{profile.name || "اسم الكابتن"}</h2>
+            <p className="text-gray-600">{profile.phone || "رقم الهاتف غير متوفر"}</p>
           </div>
           
           <div className="mt-8">
@@ -73,9 +78,6 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
               <span className="text-gray-800">دفعاتي</span>
               <span className="text-gray-500">&gt;</span>
             </button>
-
-
-            
 
             <button 
               onClick={onShowLastOrders}
