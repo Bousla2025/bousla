@@ -1,6 +1,7 @@
 // CaptainApp.tsx
 'use client';
 
+
 import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -8,7 +9,7 @@ import 'leaflet/dist/leaflet.css';
 import 'react-toastify/dist/ReactToastify.css';
 import { 
   Order, OrderDetails, Payment, Service, Position, 
-  Profile, TrackingData, Last_order
+  Profile, TrackingData, Last_order,CaptainData
 } from './types';
 import { createCustomIcon, decodePolyline, extractMunicipality, createCarIcon } from './mapUtils';
 import { 
@@ -57,15 +58,20 @@ const DynamicLastOrdersMenu = dynamic(
 const DEFAULT_POSITION: Position = [33.5138, 36.2765];
 
 declare global {
-  interface Window {
-    updateLocation: (lat: number, lng: number) => void;
-    handleNewOrder: (orderId: number) => void;
-    setCaptainProfile?: (profileData: {name: string, phone: string, photo: string}) => void;
-    getCaptainProfile?: () => void;
-    onCaptainProfileReceived?: (profileData: {name: string, phone: string, photo: string}) => void;
-    onCaptainProfileError?: (error: string) => void;
+   interface Window {
+    // للاتصال من JavaScript إلى Kotlin
     Android?: {
-      getCaptainProfile: () => void;
+      receiveMessage: (action: string, message: string) => void;
+    };
+    
+    // للاتصال من Kotlin إلى JavaScript
+    updateLocation?: (lat: number, lng: number) => void;
+    handleNewOrder?: (orderId: number) => void;
+    setCaptainData?: (data: CaptainData) => void;
+    
+    // إذا كنت تستخدم ReactNativeWebView
+    ReactNativeWebView?: {
+      postMessage: (message: string) => void;
     };
   }
 }
@@ -124,8 +130,43 @@ const [carMarker, setCarMarker] = useState<{
     greenIcon: null
   });
 
-  const captainId = 1;
+  // أضف حالة لحفظ ID الكابتن
+const [captainId, setCaptainId] = useState<number>(0);
   const mapRef = useRef<L.Map | null>(null);
+
+  
+const sendToKotlin = (action: string, message: string) => {
+  try {
+    console.log(`Sending to Kotlin - Action: ${action}, Message: ${message}`);
+    
+    // الطريقة المباشرة مع TypeScript
+    if (window.Android?.receiveMessage) {
+      window.Android.receiveMessage(action, message);
+      return;
+    }
+    
+    // إذا كنت تستخدم ReactNativeWebView (يحتاج إلى JSON)
+    if (window.ReactNativeWebView?.postMessage) {
+      const jsonMessage = JSON.stringify({ action, message });
+      window.ReactNativeWebView.postMessage(jsonMessage);
+      return;
+    }
+    
+    // للتنمية المحلية/المتصفح
+    console.warn('Android interface not available, mocking send:', { action, message });
+    mockKotlinResponse(action, message);
+  } catch (error) {
+    console.error('Error sending to Kotlin:', error);
+  }
+};
+
+// دالة المحاكاة المعدلة
+const mockKotlinResponse = (action: string, message: string) => {
+  console.log(`Mock Kotlin response - Action: ${action}, Message: ${message}`);
+};
+
+
+
 
   // داخل مكون CaptainApp، أضف useEffect لاستقبال الموقع
 useEffect(() => {
@@ -201,18 +242,31 @@ useEffect(() => {
   }, [captainId]);
 
   // Effects
-  useEffect(() => {
+ useEffect(() => {
+  // تحميل القوائم أولاً
+  const loadMenus = async () => {
+    await Promise.all([
+      import('./menu/ProfileMenu'),
+      import('./menu/PaymentsMenu'),
+      import('./menu/ServicesMenu'),
+      import('./menu/LastOrdersMenu')
+    ]);
+    
+    // ثم تحميل البيانات
     fetchInitialData();
     fetchPayments();
     fetchLastOrders();
     
-    // إضافة علامة السيارة عند توفر الموقع والأيقونات
+    // ثم تحميل أيقونة السيارة
     if (currentLocation && icons.carIcon) {
-    setCarMarker({
-      position: currentLocation,
-      icon: icons.carIcon as L.Icon
-    });
-  }
+      setCarMarker({
+        position: currentLocation,
+        icon: icons.carIcon as L.Icon
+      });
+    }
+  };
+
+  loadMenus();
 }, [icons.carIcon]);
 
 
@@ -244,8 +298,12 @@ useEffect(() => {
   }, [captainId]);
 
   const handleActivate = useCallback(() => {
-    setActive(!active);
-  }, [active]);
+  const newActiveState = !active;
+  setActive(newActiveState);
+  
+  // إرسال القيمة إلى Kotlin بناءً على الحالة الجديدة
+  sendToKotlin("start_cap_serv", newActiveState ? "1" : "0");
+}, [active]);
 
   const clearRoute = useCallback(() => {
   setRoutePoints([]);
@@ -362,47 +420,28 @@ useEffect(() => {
   };
 }, [drawRoute]);
 
-/////استقبال بيانات الكابتن من كوتلن
+///استقبال بيانات الكابتن
 useEffect(() => {
-  // تعريف دالة الاستجابة
-  const handleProfileReceived = (profileData: {
-    name: string;
-    phone: string;
-    photo: string;
-  }) => {
+  // تعريف دالة استقبال البيانات من Kotlin
+  window.setCaptainData = (data: CaptainData) => {
+    console.log('Received captain data:', data);
+    
+    // تحديث حالة البروفايل
     setProfile({
-      name: profileData.name,
-      phone: profileData.phone,
-      photo: profileData.photo
+      name: data.name,
+      phone: data.phone,
+      photo: data.photo ?? ''
     });
+    
+    // تخزين ID الكابتن في حالة المكون
+    setCaptainId(data.id);
+    
+    // يمكنك هنا إضافة أي منطق آخر تحتاجه بعد استقبال البيانات
   };
-
-  // تسجيل الدالة على window
-  window.onCaptainProfileReceived = handleProfileReceived;
-
-  // تعريف دالة الطلب
-  const requestCaptainProfile = () => {
-    if (window.Android?.getCaptainProfile) {
-      window.Android.getCaptainProfile();
-    } else if (window.getCaptainProfile) {
-      window.getCaptainProfile();
-    } else {
-      // الطريقة البديلة إذا لم تكن الدوال متاحة
-      window.setCaptainProfile?.({
-        name: "اسم افتراضي",
-        phone: "000000000",
-        photo: ""
-      });
-    }
-  };
-
-  // طلب البيانات عند التحميل
-  requestCaptainProfile();
 
   return () => {
-    // تنظيف الدوال عند إلغاء التثبيت
-    delete window.onCaptainProfileReceived;
-    delete window.getCaptainProfile;
+    // تنظيف الدالة عند إلغاء التثبيت
+    window.setCaptainData = () => {};
   };
 }, []);
 
@@ -496,6 +535,9 @@ useEffect(() => {
     }
   }, []);
 
+
+
+
   
   return (
     <div className="flex flex-col h-screen bg-gray-100">
@@ -510,7 +552,18 @@ useEffect(() => {
           </button>
 
         
+
+
+        
         </div>
+
+         <div className="flex items-center space-x-2">
+   
+
+        </div>
+
+        
+
         
         <h1 className="text-xl font-bold">كابتن بوصلة</h1>
         
@@ -679,4 +732,3 @@ useEffect(() => {
     </div>
   );
 };
-

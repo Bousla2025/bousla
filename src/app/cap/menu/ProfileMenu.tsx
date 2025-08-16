@@ -22,6 +22,20 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
   onShowLastOrders,
   onvertioal_order
 }) => {
+  // دالة للتحقق من صحة URL الصورة
+  const isValidImageUrl = (url: string | null | undefined): boolean => {
+    if (!url) return false;
+    try {
+      new URL(url);
+      return url.startsWith('http://') || url.startsWith('https://');
+    } catch {
+      return false;
+    }
+  };
+
+  // صورة افتراضية
+  const defaultAvatar = '/default-avatar.png';
+
   return (
     <div className="absolute top-0 left-0 h-full w-3/4 max-w-sm bg-white z-30 shadow-xl transform transition-transform duration-300 ease-in-out">
       <div className="h-full flex flex-col">
@@ -37,25 +51,24 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
         
         <div className="flex-1 overflow-y-auto p-4">
           <div className="text-center mt-4">
-            <div className="w-24 h-24 bg-gray-300 rounded-full mx-auto mb-4 overflow-hidden relative">
-              {profile.photo ? (
-                <Image 
-                  src={profile.photo}
-                  alt="صورة الكابتن"
-                  width={96}
-                  height={96}
-                  className="object-cover"
-                  onError={(e) => {
-                    // Fallback to default avatar if image fails to load
-                    const target = e.target as HTMLImageElement;
-                    target.src = '/default-avatar.png';
-                    target.onerror = null; // Prevent infinite loop
-                  }}
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-3xl bg-blue-500 text-white">
-                  {profile.name?.charAt(0) || 'ك'}
-                </div>
+          <div className="w-24 h-24 bg-gray-300 rounded-full mx-auto mb-4 overflow-hidden relative">
+            {isValidImageUrl(profile.photo) ? (
+              <Image 
+                src={profile.photo as string}
+                alt="صورة الكابتن"
+                width={96}
+                height={96}
+                className="object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = defaultAvatar;
+                  target.onerror = null;
+                }}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-3xl bg-blue-500 text-white">
+                {profile.name?.charAt(0) || 'ك'}
+              </div>
               )}
             </div>
             <h2 className="text-xl font-bold">{profile.name || "اسم الكابتن"}</h2>

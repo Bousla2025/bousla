@@ -99,3 +99,10 @@ export type Last_order = {
                     start_time:string,
                     end_time:string
 };
+
+export interface CaptainData {
+  id: number;
+  name: string;
+  phone: string;
+  photo?: string | null;
+}
