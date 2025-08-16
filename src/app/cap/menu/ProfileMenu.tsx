@@ -12,6 +12,9 @@ interface ProfileMenuProps {
   onShowPayments: () => void;
   onShowLastOrders: () => void;
   onvertioal_order: () => void;
+  onlogout_btn: () => void;
+   onShowChangePassword: () => void;
+  
 }
 
 export const ProfileMenu: React.FC<ProfileMenuProps> = ({
@@ -20,7 +23,9 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
   onShowServices,
   onShowPayments,
   onShowLastOrders,
-  onvertioal_order
+  onvertioal_order,
+  onlogout_btn,
+  onShowChangePassword
 }) => {
   // دالة للتحقق من صحة URL الصورة
   const isValidImageUrl = (url: string | null | undefined): boolean => {
@@ -108,12 +113,17 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
               <span className="text-gray-500">&gt;</span>
             </button>
 
-            <button className="w-full text-right py-3 border-b border-gray-200 flex justify-between items-center hover:bg-gray-100 px-2 rounded transition-colors">
-              <span className="text-gray-800">تغيير كلمة المرور</span>
-              <span className="text-gray-500">&gt;</span>
-            </button>
+           <button 
+  onClick={onShowChangePassword} // استخدم الـ prop هنا بدلاً من setShowChangePassword مباشرة
+  className="w-full text-right py-3 border-b border-gray-200 flex justify-between items-center hover:bg-gray-100 px-2 rounded transition-colors"
+>
+  <span className="text-gray-800">تغيير كلمة المرور</span>
+  <span className="text-gray-500">&gt;</span>
+</button>
             
-            <button className="w-full text-right py-3 text-red-500 hover:bg-red-50 px-2 rounded mt-4 transition-colors">
+            <button 
+            onClick={onlogout_btn}
+            className="w-full text-right py-3 text-red-500 hover:bg-red-50 px-2 rounded mt-4 transition-colors">
               تسجيل الخروج
             </button>
           </div>

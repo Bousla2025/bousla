@@ -113,6 +113,13 @@ export default function CaptainApp() {
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
   const [acceptOrderStatus, setAcceptOrderStatus] = useState<'idle' |'goodluck' | 'loading' | 'success' | 'error'>('idle');
+
+  const [showChangePassword, setShowChangePassword] = useState(false);
+const [currentPassword, setCurrentPassword] = useState('');
+const [newPassword, setNewPassword] = useState('');
+const [confirmPassword, setConfirmPassword] = useState('');
+const [passwordError, setPasswordError] = useState('');
+
   // في جزء state declarations في CaptainApp.tsx
 const [carMarker, setCarMarker] = useState<{
   position: Position;
@@ -143,10 +150,15 @@ useEffect(() => {
     const name = urlParams.get('name');
     const phone = urlParams.get('phone');
     const photo = urlParams.get('photo');
+    const active = urlParams.get('active');
     
     if (id) {
       setCaptainId(Number(id));
     }
+
+    // تحويل قيمة active من سلسلة نصية إلى boolean
+    setActive(active === 'true');
+    
     
     // تحديث البيانات الأساسية
     const updatedProfile = {
@@ -200,6 +212,8 @@ useEffect(() => {
     }
   }
 }, []);
+
+
 
 
 
@@ -294,6 +308,8 @@ const mockKotlinResponse = (action: string, message: string) => {
 }, [icons.carIcon]);
 
 
+
+
   // داخل مكون CaptainApp، أضف useEffect لاستقبال الموقع
 useEffect(() => {
   // تعريف دالة استقبال الموقع من Kotlin
@@ -321,7 +337,9 @@ useEffect(() => {
   return () => {
     window.updateLocation = () => {};
   };
-}, [icons.carIcon]); // تأكد من إزالة active من dependencies إذا كان موجوداً
+}, [icons.carIcon]);
+
+
   // تحميل الأيقونات عند بدء التحميل
   useEffect(() => {
     const loadIcons = async () => {
@@ -586,7 +604,48 @@ useEffect(() => {
     }
   }, []);
 
+const handleChangePassword = async () => {
+  if (newPassword !== confirmPassword) {
+    setPasswordError('كلمة المرور الجديدة وتأكيدها غير متطابقين');
+    return;
+  }
 
+  if (newPassword.length < 6) {
+    setPasswordError('كلمة المرور يجب أن تكون على الأقل 6 أحرف');
+    return;
+  }
+
+  try {
+    const response = await fetch('https://alrasekhooninlaw.com/bousla/app/update_password.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        captain_id: captainId,
+        current_password: currentPassword,
+        new_password: newPassword,
+        confirm_password: confirmPassword
+      }),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      // إظهار رسالة نجاح
+      alert('تم تغيير كلمة المرور بنجاح');
+      setShowChangePassword(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordError('');
+    } else {
+      setPasswordError(data.error || 'حدث خطأ أثناء تغيير كلمة المرور');
+    }
+  } catch (error) {
+    setPasswordError('حدث خطأ في الاتصال بالخادم');
+  }
+};
 
 
   
@@ -731,6 +790,12 @@ useEffect(() => {
               setShowProfile(false)
             }
             }
+            onlogout_btn={()=> sendToKotlin("logout", "")}
+
+            onShowChangePassword={() => {
+    setShowChangePassword(true);
+    setShowProfile(false); // إغلاق قائمة البروفايل عند فتح نافذة تغيير كلمة المرور
+  }}
           />
         )}
 
@@ -772,13 +837,75 @@ useEffect(() => {
       clearRoute();
     }}
     onAccept={handleAcceptOrder}
-    acceptStatus={acceptOrderStatus} // ← هنا نمرر الحالة الصحيحة
+    acceptStatus={acceptOrderStatus} 
   />
 )}
 
         {showMessage && (
           <BetterLuckMessage onClose={() => setShowMessage(false)} />
         )}
+
+        {showChangePassword && (
+  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
+    <div className="bg-white p-6 rounded-lg w-80">
+      <h2 className="text-xl font-bold mb-4 text-right">تغيير كلمة المرور</h2>
+      
+      {passwordError && (
+        <div className="mb-4 text-red-500 text-right">{passwordError}</div>
+      )}
+      
+      <div className="mb-4">
+        <label className="block text-right mb-2">كلمة المرور الحالية</label>
+        <input
+          type="password"
+          value={currentPassword}
+          onChange={(e) => setCurrentPassword(e.target.value)}
+          className="w-full p-2 border rounded text-right"
+        />
+      </div>
+      
+      <div className="mb-4">
+        <label className="block text-right mb-2">كلمة المرور الجديدة</label>
+        <input
+          type="password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          className="w-full p-2 border rounded text-right"
+        />
+      </div>
+      
+      <div className="mb-4">
+        <label className="block text-right mb-2">تأكيد كلمة المرور الجديدة</label>
+        <input
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          className="w-full p-2 border rounded text-right"
+        />
+      </div>
+      
+      <div className="flex justify-between">
+        <button
+          onClick={() => {
+            setShowChangePassword(false);
+            setPasswordError('');
+          }}
+          className="px-4 py-2 bg-gray-300 rounded"
+        >
+          إلغاء
+        </button>
+        <button
+          onClick={handleChangePassword}
+          className="px-4 py-2 bg-blue-600 text-white rounded"
+        >
+          حفظ التغييرات
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+
       </main>
     </div>
   );
