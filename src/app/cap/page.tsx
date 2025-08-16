@@ -269,6 +269,31 @@ useEffect(() => {
   loadMenus();
 }, [icons.carIcon]);
 
+///استقبال بيانات الكابتن
+useEffect(() => {
+  // تعريف دالة استقبال البيانات من Kotlin
+  window.setCaptainData = (data: CaptainData) => {
+    console.log('Received captain data:', data);
+    
+    // تحديث حالة البروفايل
+    setProfile({
+      name: data.name,
+      phone: data.phone,
+      photo: data.photo ?? ''
+    });
+    
+    // تخزين ID الكابتن في حالة المكون
+    setCaptainId(data.id);
+    
+    // يمكنك هنا إضافة أي منطق آخر تحتاجه بعد استقبال البيانات
+  };
+
+  return () => {
+    // تنظيف الدالة عند إلغاء التثبيت
+    window.setCaptainData = () => {};
+  };
+}, []);
+
 
 
   // Callbacks
@@ -420,30 +445,7 @@ useEffect(() => {
   };
 }, [drawRoute]);
 
-///استقبال بيانات الكابتن
-useEffect(() => {
-  // تعريف دالة استقبال البيانات من Kotlin
-  window.setCaptainData = (data: CaptainData) => {
-    console.log('Received captain data:', data);
-    
-    // تحديث حالة البروفايل
-    setProfile({
-      name: data.name,
-      phone: data.phone,
-      photo: data.photo ?? ''
-    });
-    
-    // تخزين ID الكابتن في حالة المكون
-    setCaptainId(data.id);
-    
-    // يمكنك هنا إضافة أي منطق آخر تحتاجه بعد استقبال البيانات
-  };
 
-  return () => {
-    // تنظيف الدالة عند إلغاء التثبيت
-    window.setCaptainData = () => {};
-  };
-}, []);
 
 
 
