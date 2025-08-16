@@ -1,7 +1,6 @@
 // CaptainApp.tsx
 'use client';
 
-
 import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -9,7 +8,7 @@ import 'leaflet/dist/leaflet.css';
 import 'react-toastify/dist/ReactToastify.css';
 import { 
   Order, OrderDetails, Payment, Service, Position, 
-  Profile, TrackingData, Last_order,CaptainData
+  Profile, TrackingData, Last_order, CaptainData
 } from './types';
 import { createCustomIcon, decodePolyline, extractMunicipality, createCarIcon } from './mapUtils';
 import { 
@@ -137,28 +136,73 @@ const [captainId, setCaptainId] = useState<number>(0);
 
   ///استقبال بيانات الكابتن
 useEffect(() => {
-  // تعريف دالة استقبال البيانات من Kotlin
-  window.setCaptainData = (data: CaptainData) => {
-    console.log('Received captain data:', data);
+  if (typeof window !== 'undefined') {
+    const urlParams = new URLSearchParams(window.location.search);
     
-    // تحديث حالة البروفايل
-    setProfile({
-      name: data.name,
-      phone: data.phone,
-      photo: data.photo ?? ''
-    });
+    const id = urlParams.get('id');
+    const name = urlParams.get('name');
+    const phone = urlParams.get('phone');
+    const photo = urlParams.get('photo');
     
-    // تخزين ID الكابتن في حالة المكون
-    setCaptainId(data.id);
+    if (id) {
+      setCaptainId(Number(id));
+    }
     
-    // يمكنك هنا إضافة أي منطق آخر تحتاجه بعد استقبال البيانات
-  };
-
-  return () => {
-    // تنظيف الدالة عند إلغاء التثبيت
-    window.setCaptainData = () => {};
-  };
+    // تحديث البيانات الأساسية
+    const updatedProfile = {
+      name: name ? decodeURIComponent(name) : profile.name,
+      phone: phone ? decodeURIComponent(phone) : profile.phone,
+      photo: profile.photo // الاحتفاظ بالقيمة الحالية افتراضيًا
+    };
+    
+    // التحقق من صحة الصورة قبل التحديث
+    if (photo) {
+      const photoUrl = decodeURIComponent(photo);
+      
+      // دالة للتحقق من صحة الصورة
+      const checkImageValidity = async (url: string) => {
+        try {
+          const response = await fetch(url, { method: 'HEAD' });
+          if (response.ok) {
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.startsWith('image/')) {
+              return url; // الصورة صالحة
+            }
+          }
+          return null; // الصورة غير صالحة
+        } catch (error) {
+          return null; // حدث خطأ في التحقق
+        }
+      };
+      
+      // التحقق من الصورة وتحديث الحالة فقط إذا كانت صالحة
+      checkImageValidity(photoUrl).then(validUrl => {
+        if (validUrl) {
+          setProfile(prev => ({
+            ...prev,
+            ...updatedProfile,
+            photo: validUrl
+          }));
+        } else {
+          // إذا كانت الصورة غير صالحة، نحدّث كل شيء ما عدا الصورة
+          setProfile(prev => ({
+            ...prev,
+            ...updatedProfile
+          }));
+        }
+      });
+    } else {
+      // إذا لم تكن هناك صورة في الرابط، نحدّث البيانات الأخرى فقط
+      setProfile(prev => ({
+        ...prev,
+        ...updatedProfile
+      }));
+    }
+  }
 }, []);
+
+
+
   
 const sendToKotlin = (action: string, message: string) => {
   try {
@@ -210,6 +254,7 @@ const mockKotlinResponse = (action: string, message: string) => {
   }, [payments]);
 
   const fetchLastOrders = useCallback(async () => {
+    console.log(captainId)
     try {
       const response = await fetchlast_order<Last_order[]>('get_lastorder', { cap_id: captainId });
       if (response.success) {
