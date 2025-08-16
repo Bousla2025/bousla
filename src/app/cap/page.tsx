@@ -134,6 +134,31 @@ const [carMarker, setCarMarker] = useState<{
 const [captainId, setCaptainId] = useState<number>(0);
   const mapRef = useRef<L.Map | null>(null);
 
+
+  ///استقبال بيانات الكابتن
+useEffect(() => {
+  // تعريف دالة استقبال البيانات من Kotlin
+  window.setCaptainData = (data: CaptainData) => {
+    console.log('Received captain data:', data);
+    
+    // تحديث حالة البروفايل
+    setProfile({
+      name: data.name,
+      phone: data.phone,
+      photo: data.photo ?? ''
+    });
+    
+    // تخزين ID الكابتن في حالة المكون
+    setCaptainId(data.id);
+    
+    // يمكنك هنا إضافة أي منطق آخر تحتاجه بعد استقبال البيانات
+  };
+
+  return () => {
+    // تنظيف الدالة عند إلغاء التثبيت
+    window.setCaptainData = () => {};
+  };
+}, []);
   
 const sendToKotlin = (action: string, message: string) => {
   try {
@@ -168,52 +193,6 @@ const mockKotlinResponse = (action: string, message: string) => {
 
 
 
-  // داخل مكون CaptainApp، أضف useEffect لاستقبال الموقع
-useEffect(() => {
-  // تعريف دالة استقبال الموقع من Kotlin
-  window.updateLocation = (lat: number, lng: number) => {
-    const newLocation: Position = [lat, lng];
-    
-    // تحديث حالة الموقع الحالي
-    setCurrentLocation(newLocation);
-    
-    // تحديث مركز الدائرة
-    setCircleCenter(newLocation);
-    
-    // تحديث موقع السيارة فقط
-    if (icons.carIcon) {
-      setCarMarker({
-        position: newLocation,
-        icon: icons.carIcon
-      });
-    }
-    
-    // إزالة أي كود يقوم بتغيير مركز الخريطة أو مستوى zoom تلقائياً
-    // لا تستخدم mapRef.current.flyTo() أو setView() هنا
-  };
-
-  return () => {
-    window.updateLocation = () => {};
-  };
-}, [icons.carIcon]); // تأكد من إزالة active من dependencies إذا كان موجوداً
-  // تحميل الأيقونات عند بدء التحميل
-  useEffect(() => {
-    const loadIcons = async () => {
-      const [carIcon, redIcon, greenIcon] = await Promise.all([
-        createCarIcon(),
-        createCustomIcon('red'),
-        createCustomIcon('green')
-      ]);
-      
-      setIcons({
-        carIcon,
-        redIcon,
-        greenIcon
-      });
-    };
-
-    loadIcons();
-  }, []);
 
 
 
@@ -269,30 +248,55 @@ useEffect(() => {
   loadMenus();
 }, [icons.carIcon]);
 
-///استقبال بيانات الكابتن
+
+  // داخل مكون CaptainApp، أضف useEffect لاستقبال الموقع
 useEffect(() => {
-  // تعريف دالة استقبال البيانات من Kotlin
-  window.setCaptainData = (data: CaptainData) => {
-    console.log('Received captain data:', data);
+  // تعريف دالة استقبال الموقع من Kotlin
+  window.updateLocation = (lat: number, lng: number) => {
+    const newLocation: Position = [lat, lng];
     
-    // تحديث حالة البروفايل
-    setProfile({
-      name: data.name,
-      phone: data.phone,
-      photo: data.photo ?? ''
-    });
+    // تحديث حالة الموقع الحالي
+    setCurrentLocation(newLocation);
     
-    // تخزين ID الكابتن في حالة المكون
-    setCaptainId(data.id);
+    // تحديث مركز الدائرة
+    setCircleCenter(newLocation);
     
-    // يمكنك هنا إضافة أي منطق آخر تحتاجه بعد استقبال البيانات
+    // تحديث موقع السيارة فقط
+    if (icons.carIcon) {
+      setCarMarker({
+        position: newLocation,
+        icon: icons.carIcon
+      });
+    }
+    
+    // إزالة أي كود يقوم بتغيير مركز الخريطة أو مستوى zoom تلقائياً
+    // لا تستخدم mapRef.current.flyTo() أو setView() هنا
   };
 
   return () => {
-    // تنظيف الدالة عند إلغاء التثبيت
-    window.setCaptainData = () => {};
+    window.updateLocation = () => {};
   };
-}, []);
+}, [icons.carIcon]); // تأكد من إزالة active من dependencies إذا كان موجوداً
+  // تحميل الأيقونات عند بدء التحميل
+  useEffect(() => {
+    const loadIcons = async () => {
+      const [carIcon, redIcon, greenIcon] = await Promise.all([
+        createCarIcon(),
+        createCustomIcon('red'),
+        createCustomIcon('green')
+      ]);
+      
+      setIcons({
+        carIcon,
+        redIcon,
+        greenIcon
+      });
+    };
+
+    loadIcons();
+  }, []);
+
+
 
 
 
