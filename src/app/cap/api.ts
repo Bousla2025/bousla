@@ -210,7 +210,7 @@ export const updateServiceStatus = async (serviceId: number, newActive: number) 
 
 export async function updateOrderStatus_new(orderId: number, captainId: number) {
   try {
-    const response = await fetch('https://alrasekhooninlaw.com/bousla/cap/update_order_status.php', {
+    const response = await fetch('https://alrasekhooninlaw.com/bousla/cap/accept_order.php', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

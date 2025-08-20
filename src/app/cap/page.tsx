@@ -507,7 +507,12 @@ const handleRefreshServices = useCallback(async () => {
             user_rate: order.user_rate,
             start_detlis: order.start_detlis,
             end_detlis: order.end_detlis,
-            notes: order.notes || 'لا توجد ملاحظات'
+            notes: order.notes || 'لا توجد ملاحظات',
+            km_price:order.km_price,
+            min_price:order.min_price,
+            discount:order.discount,
+            add1:order.add1,
+            f_km:order.f_km
           });
           
           setShowOrderDetails(true);
@@ -550,7 +555,12 @@ const handleRefreshServices = useCallback(async () => {
       user_rate: order.user_rate,
       start_detlis: order.start_detlis,
       end_detlis: order.end_detlis,
-      notes: order.notes || 'لا توجد ملاحظات'
+      notes: order.notes || 'لا توجد ملاحظات',
+      km_price:order.km_price,
+      min_price:order.min_price,
+      discount:order.discount,
+      add1:order.add1,
+      f_km:order.f_km
     });
     
     setAcceptOrderStatus('idle');
@@ -561,39 +571,64 @@ const handleRefreshServices = useCallback(async () => {
     }
   }, [drawRoute]);
 
-  const handleAcceptOrder = useCallback(async () => {
-    if (!selectedOrder) return;
 
-    setAcceptOrderStatus('loading');
+  ///الموافقة على الطلب
+const handleAcceptOrder = useCallback(async () => {
+  if (!selectedOrder) return;
 
-    try {
-      const result = await updateOrderStatus_new(selectedOrder.id, captainId);
-      console.log(result)
+  setAcceptOrderStatus('loading');
 
-      if (result === 'success') {
-        setAcceptOrderStatus('success');
-        setTimeout(() => {
-          setShowOrderDetails(false);
-          setAcceptOrderStatus('idle');
-          clearRoute();
-        }, 2000);
-      } else if (result === 'goodluck') {
-        setAcceptOrderStatus('goodluck');
-        setTimeout(() => {
-          setShowOrderDetails(false);
-          setAcceptOrderStatus('idle');
-          clearRoute();
-          setShowMessage(true);
-        }, 2000);
-      } else {
-        setAcceptOrderStatus('error');
-      }
-    } catch (error) {
-      console.error('Error accepting order:', error);
+  try {
+    const result = await updateOrderStatus_new(selectedOrder.id, captainId);
+    console.log(result)
+
+    if (result === 'success') {
+      setAcceptOrderStatus('success');
+      
+      // إرسال بيانات الطلب إلى Kotlin
+      const orderData = {
+        id: selectedOrder.id,
+        start_text: selectedOrder.start_text,
+        end_text: selectedOrder.end_text,
+        distance_km: selectedOrder.distance_km,
+        duration_min: selectedOrder.duration_min,
+        cost: selectedOrder.cost,
+        user_rate: selectedOrder.user_rate,
+        km_price:selectedOrder.km_price,
+        min_price:selectedOrder.min_price,
+        discount:selectedOrder.discount,
+        add1:selectedOrder.add1,
+        f_km:selectedOrder.f_km
+        
+        
+      };
+      
+      sendToKotlin("order_accepted", JSON.stringify(orderData));
+      
+      setTimeout(() => {
+        setShowOrderDetails(false);
+        setAcceptOrderStatus('idle');
+        clearRoute();
+      }, 2000);
+    } else if (result === 'goodluck') {
+      setAcceptOrderStatus('goodluck');
+      setTimeout(() => {
+        setShowOrderDetails(false);
+        setAcceptOrderStatus('idle');
+        clearRoute();
+        setShowMessage(true);
+      }, 2000);
+    } else {
       setAcceptOrderStatus('error');
     }
-  }, [selectedOrder, captainId, clearRoute]);
+  } catch (error) {
+    console.error('Error accepting order:', error);
+    setAcceptOrderStatus('error');
+  }
+}, [selectedOrder, captainId, clearRoute]);
 
+
+  //ايقاف او تشغيل الخدمات
   const handleServiceToggle = useCallback(async (service: Service) => {
     const newActive = service.active === 1 ? 0 : 1;
     const originalActive = service.active;
@@ -720,7 +755,7 @@ const handleRefreshServices = useCallback(async () => {
             </Suspense>
           ) : (
             <div className="h-full w-full bg-gray-100 flex items-center justify-center">
-              <div className="text-gray-500">جاري تحميل التطبيق...</div>
+              <div className="text-gray-500">جاري تحميل الخدمات الأساسية...</div>
             </div>
           )}
         </div>

@@ -562,7 +562,8 @@ const [chosenService, setChosenService] = useState<ChildService | null>(null);
       km_price: (firstKmCost + distanceCost).toFixed(0),
       min_price: durationCost.toFixed(0),
       discount: discount.toFixed(0),
-      add1: (additionalCost + tax).toFixed(0)
+      add1: (additionalCost + tax).toFixed(0),
+      f_km:(firstKmCost).toFixed(0)
     };
 
     const API_URL = 'https://alrasekhooninlaw.com/bousla/submit_order.php';

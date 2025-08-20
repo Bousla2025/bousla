@@ -23,7 +23,12 @@ export type Order = {
   user_rate: number;
   start_detlis: string;
   end_detlis: string;
-   insert_time: string; // أضف هذا السطر
+   insert_time: string;
+   discount:string;
+   km_price:string;
+   min_price:string;
+   add1:string;
+   f_km:string;
 };
 
 export type OrderDetails = {
@@ -38,6 +43,12 @@ export type OrderDetails = {
   start_detlis: string;
   end_detlis: string;
   notes: string;
+   discount:string;
+   km_price:string;
+   min_price:string;
+   add1:string;
+   f_km:string;
+
 };
 
 export type Service = {
