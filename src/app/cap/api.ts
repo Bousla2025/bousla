@@ -208,9 +208,9 @@ export const updateServiceStatus = async (serviceId: number, newActive: number) 
 };
 
 
-export async function updateOrderStatus_new(orderId: number, captainId: number) {
+export async function update_order_status(orderId: number, captainId: number,status:string) {
   try {
-    const response = await fetch('https://alrasekhooninlaw.com/bousla/cap/accept_order.php', {
+    const response = await fetch('https://alrasekhooninlaw.com/bousla/cap/update_order_status.php', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -218,6 +218,7 @@ export async function updateOrderStatus_new(orderId: number, captainId: number) 
       body: JSON.stringify({
         id: orderId,
         cap_id: captainId,
+        status:status
       }),
     });
 

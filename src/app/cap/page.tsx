@@ -13,11 +13,12 @@ import {
 import { createCustomIcon, decodePolyline, extractMunicipality, createCarIcon } from './mapUtils';
 import { 
   fetchData, fetchOrderById, updateOrderStatus, 
-  updateOrderStatus_new, 
+  update_order_status, 
   updateServiceStatus, fetchlast_order
 } from './api';
 import { OrderDetailsModal } from './OrderDetailsModal';
 import { BetterLuckMessage } from './BetterLuckMessage';
+import OrderTrackingModal from './OrderTrackingModal';
 
 // تحميل مكونات القوائم أولاً
 const DynamicProfileMenu = dynamic(
@@ -124,6 +125,8 @@ const [isRefreshingServices, setIsRefreshingServices] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [showOrderTracking, setShowOrderTracking] = useState(false);
+const [trackingOrder, setTrackingOrder] = useState<OrderDetails | null>(null);
   const [carMarker, setCarMarker] = useState<{
     position: Position;
     icon: L.Icon;
@@ -573,13 +576,13 @@ const handleRefreshServices = useCallback(async () => {
 
 
   ///الموافقة على الطلب
-const handleAcceptOrder = useCallback(async () => {
+const handleAcceptOrder = useCallback(async (status:string) => {
   if (!selectedOrder) return;
 
   setAcceptOrderStatus('loading');
 
   try {
-    const result = await updateOrderStatus_new(selectedOrder.id, captainId);
+    const result = await update_order_status(selectedOrder.id, captainId,status);
     console.log(result)
 
     if (result === 'success') {
@@ -599,8 +602,6 @@ const handleAcceptOrder = useCallback(async () => {
         discount:selectedOrder.discount,
         add1:selectedOrder.add1,
         f_km:selectedOrder.f_km
-        
-        
       };
       
       sendToKotlin("order_accepted", JSON.stringify(orderData));
@@ -609,6 +610,10 @@ const handleAcceptOrder = useCallback(async () => {
         setShowOrderDetails(false);
         setAcceptOrderStatus('idle');
         clearRoute();
+        
+        // إظهار واجهة متابعة الطلب
+        setTrackingOrder(selectedOrder);
+        setShowOrderTracking(true);
       }, 2000);
     } else if (result === 'goodluck') {
       setAcceptOrderStatus('goodluck');
@@ -627,6 +632,56 @@ const handleAcceptOrder = useCallback(async () => {
   }
 }, [selectedOrder, captainId, clearRoute]);
 
+
+
+
+
+//تعديل حالة الطلب
+const handleNextStatus = useCallback(async (status: string) => {
+  if (!trackingOrder) return;
+
+  try {
+    // إرسال حالة الطلب الجديدة إلى السيرفر
+    const result = await update_order_status(trackingOrder.id, captainId, status);
+    
+    if (result === 'success') {
+      // بعد التأكد من التعديل في السيرفر، إرسال البيانات إلى Kotlin
+      sendToKotlin("order_status_update", JSON.stringify({
+        orderId: trackingOrder.id,
+        status: status
+      }));
+      
+      console.log(`تم تحديث حالة الطلب ${trackingOrder.id} إلى ${status} بنجاح`);
+    } else {
+      console.error('فشل في تحديث حالة الطلب في السيرفر');
+      // يمكنك إضافة رسالة خطأ للمستخدم هنا إذا لزم الأمر
+    }
+  } catch (error) {
+    console.error('خطأ أثناء تحديث حالة الطلب:', error);
+  }
+}, [trackingOrder, captainId]);
+
+//الاتصال بالزبون
+const handleCallCustomer = useCallback(() => {
+  if (trackingOrder) {
+    sendToKotlin("call_customer", trackingOrder.id.toString());
+  }
+}, [trackingOrder]);
+
+//نكز
+const handlePokeCustomer = useCallback(() => {
+  if (trackingOrder) {
+    sendToKotlin("poke_customer", trackingOrder.id.toString());
+  }
+}, [trackingOrder]);
+//الاتصال بالشركة
+const handleCallCompany = useCallback(() => {
+  sendToKotlin("call_company", "");
+}, []);
+//الاتصال بالطوارئ
+const handleCallEmergency = useCallback(() => {
+  sendToKotlin("call_emergency", "");
+}, []);
 
   //ايقاف او تشغيل الخدمات
   const handleServiceToggle = useCallback(async (service: Service) => {
@@ -873,7 +928,7 @@ const handleAcceptOrder = useCallback(async () => {
               setAcceptOrderStatus('idle');
               clearRoute();
             }}
-            onAccept={handleAcceptOrder}
+             onAccept={() => handleAcceptOrder("cap_accept")}
             acceptStatus={acceptOrderStatus} 
           />
         )}
@@ -881,6 +936,19 @@ const handleAcceptOrder = useCallback(async () => {
         {showMessage && (
           <BetterLuckMessage onClose={() => setShowMessage(false)} />
         )}
+
+        {showOrderTracking && trackingOrder && (
+  <div className="fixed bottom-0 left-0 right-0 z-50">
+    <OrderTrackingModal
+      order={trackingOrder}
+      onNextStatus={handleNextStatus}
+      onCallCustomer={handleCallCustomer}
+      onPokeCustomer={handlePokeCustomer}
+      onCallCompany={handleCallCompany}
+      onCallEmergency={handleCallEmergency}
+    />
+  </div>
+)}
 
         {showChangePassword && (
           <div className="absolute inset-0 flex items-center justify-center z-40 backdrop-blur-md">
