@@ -646,10 +646,11 @@ const handleNextStatus = useCallback(async (status: string) => {
     
     if (result === 'success') {
       // بعد التأكد من التعديل في السيرفر، إرسال البيانات إلى Kotlin
-      sendToKotlin("order_status_update", JSON.stringify({
-        orderId: trackingOrder.id,
-        status: status
-      }));
+    sendToKotlin("order_status_update", JSON.stringify({
+    orderId: trackingOrder.id,
+    status: status,
+    date_time: new Date().toISOString() 
+}));
       
       console.log(`تم تحديث حالة الطلب ${trackingOrder.id} إلى ${status} بنجاح`);
     } else {
