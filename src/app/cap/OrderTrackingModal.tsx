@@ -30,7 +30,7 @@ interface TrackingData {
 
 interface OrderTrackingModalProps {
   order: myorder;
-  trackingData?: TrackingData; // بيانات التتبع الاختيارية
+  trackingData?: TrackingData;
   onNextStatus: (status: string) => void;
   onCallCustomer: () => void;
   onPokeCustomer: () => void;
@@ -62,7 +62,6 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
     price: order.cost
   });
 
-  // تحديث بيانات العرض عند استقبال بيانات جديدة من Kotlin
   useEffect(() => {
     if (trackingData) {
       setDisplayData({
