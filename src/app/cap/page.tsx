@@ -977,8 +977,7 @@ useEffect(() => {
           <BetterLuckMessage onClose={() => setShowMessage(false)} />
         )}
 
-        // في جزء عرض OrderTrackingModal
-{showOrderTracking && trackingOrder && (
+  {showOrderTracking && trackingOrder && (
   <div className="fixed bottom-0 left-0 right-0 z-50">
     <OrderTrackingModal
       order={trackingOrder}
