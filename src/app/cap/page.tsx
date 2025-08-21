@@ -515,7 +515,8 @@ const handleRefreshServices = useCallback(async () => {
             min_price:order.min_price,
             discount:order.discount,
             add1:order.add1,
-            f_km:order.f_km
+            f_km:order.f_km,
+            start_time:new Date().toISOString() 
           });
           
           setShowOrderDetails(true);
@@ -563,7 +564,8 @@ const handleRefreshServices = useCallback(async () => {
       min_price:order.min_price,
       discount:order.discount,
       add1:order.add1,
-      f_km:order.f_km
+      f_km:order.f_km,
+      start_time: new Date().toISOString()  
     });
     
     setAcceptOrderStatus('idle');
@@ -601,7 +603,8 @@ const handleAcceptOrder = useCallback(async (status:string) => {
         min_price:selectedOrder.min_price,
         discount:selectedOrder.discount,
         add1:selectedOrder.add1,
-        f_km:selectedOrder.f_km
+        f_km:selectedOrder.f_km,
+        start_time:new Date().toISOString() 
       };
       
       sendToKotlin("order_accepted", JSON.stringify(orderData));
@@ -641,16 +644,19 @@ const handleNextStatus = useCallback(async (status: string) => {
   if (!trackingOrder) return;
 
   try {
-    // إرسال حالة الطلب الجديدة إلى السيرفر
-    const result = await update_order_status(trackingOrder.id, captainId, status);
-    
-    if (result === 'success') {
-      // بعد التأكد من التعديل في السيرفر، إرسال البيانات إلى Kotlin
+    //ارسال الطلب لكوتلن
     sendToKotlin("order_status_update", JSON.stringify({
     orderId: trackingOrder.id,
     status: status,
     date_time: new Date().toISOString() 
 }));
+
+    // إرسال حالة الطلب الجديدة إلى السيرفر
+    const result = await update_order_status(trackingOrder.id, captainId, status);
+    
+    if (result === 'success') {
+      
+    
       
       console.log(`تم تحديث حالة الطلب ${trackingOrder.id} إلى ${status} بنجاح`);
     } else {
