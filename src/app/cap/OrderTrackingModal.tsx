@@ -3,8 +3,28 @@
 
 import React, { useState } from 'react';
 
+export type myorder = {
+  id: number;
+  ser_chi_id: number;
+  start_text: string;
+  end_text: string;
+  distance_km: string;
+  duration_min: number;
+  cost: string;
+  user_rate: number;
+  start_detlis: string;
+  end_detlis: string;
+  notes: string;
+   discount:string;
+   km_price:string;
+   min_price:string;
+   add1:string;
+   f_km:string;
+
+};
+
 interface OrderTrackingModalProps {
-  order: any;
+  order: myorder;
   onNextStatus: (status: string) => void;
   onCallCustomer: () => void;
   onPokeCustomer: () => void;
