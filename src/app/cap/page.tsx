@@ -609,6 +609,9 @@ const handleAcceptOrder = useCallback(async (status:string) => {
       };
       
       sendToKotlin("order_accepted", JSON.stringify(orderData));
+
+      //ايقاف زر استقبال الطلبات
+      setActive(false)
       
       setTimeout(() => {
         setShowOrderDetails(false);
