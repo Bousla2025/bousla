@@ -693,20 +693,17 @@ const handleCallEmergency = useCallback(() => {
 
 ///استقبال بيانات متابعة الرحلة من كوتلن
 // داخل useEffect المخصص لاستقبال البيانات من Kotlin
+// داخل useEffect لاستقبال البيانات
 useEffect(() => {
-  // تعريف دالة استقبال بيانات التكلفة من Kotlin
   window.update_cost = (km: string, min: string, cost: string) => {
     console.log('Received cost data:', { km, min, cost });
     
-    // تحديث حالة بيانات التكلفة
-    setTrackingData(prev => ({
-      ...prev,
+    setTrackingData({
       distance: km,
       time: min,
       price: cost
-    }));
+    });
     
-    // إذا كان هناك طلب تتبع نشط، قم بتحديثه
     if (trackingOrder) {
       setTrackingOrder(prev => prev ? {
         ...prev,
@@ -718,8 +715,7 @@ useEffect(() => {
   };
 
   return () => {
-    // تنظيف الدالة عند إلغاء التثبيت
-    window.update_cost = () => {};
+    window.update_cost = undefined;
   };
 }, [trackingOrder]);
 
