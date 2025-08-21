@@ -72,6 +72,7 @@ declare global {
     updateLocation?: (lat: number, lng: number) => void;
     handleNewOrder?: (orderId: number) => void;
     setCaptainData?: (data: CaptainData) => void;
+    update_cost?: (km:string,min:string,cost:string) =>void;
     
     // إذا كنت تستخدم ReactNativeWebView
     ReactNativeWebView?: {
@@ -690,6 +691,38 @@ const handleCallEmergency = useCallback(() => {
   sendToKotlin("call_emergency", "");
 }, []);
 
+///استقبال بيانات متابعة الرحلة من كوتلن
+// داخل useEffect المخصص لاستقبال البيانات من Kotlin
+useEffect(() => {
+  // تعريف دالة استقبال بيانات التكلفة من Kotlin
+  window.update_cost = (km: string, min: string, cost: string) => {
+    console.log('Received cost data:', { km, min, cost });
+    
+    // تحديث حالة بيانات التكلفة
+    setTrackingData(prev => ({
+      ...prev,
+      distance: km,
+      time: min,
+      price: cost
+    }));
+    
+    // إذا كان هناك طلب تتبع نشط، قم بتحديثه
+    if (trackingOrder) {
+      setTrackingOrder(prev => prev ? {
+        ...prev,
+        distance_km: km,
+        duration_min: parseInt(min) || 0,
+        cost: cost
+      } : null);
+    }
+  };
+
+  return () => {
+    // تنظيف الدالة عند إلغاء التثبيت
+    window.update_cost = () => {};
+  };
+}, [trackingOrder]);
+
   //ايقاف او تشغيل الخدمات
   const handleServiceToggle = useCallback(async (service: Service) => {
     const newActive = service.active === 1 ? 0 : 1;
@@ -944,10 +977,12 @@ const handleCallEmergency = useCallback(() => {
           <BetterLuckMessage onClose={() => setShowMessage(false)} />
         )}
 
-        {showOrderTracking && trackingOrder && (
+        // في جزء عرض OrderTrackingModal
+{showOrderTracking && trackingOrder && (
   <div className="fixed bottom-0 left-0 right-0 z-50">
     <OrderTrackingModal
       order={trackingOrder}
+      trackingData={trackingData} // تمرير بيانات التتبع
       onNextStatus={handleNextStatus}
       onCallCustomer={handleCallCustomer}
       onPokeCustomer={handlePokeCustomer}

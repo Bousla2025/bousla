@@ -1,7 +1,7 @@
 // OrderTrackingModal.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export type myorder = {
   id: number;
@@ -15,16 +15,22 @@ export type myorder = {
   start_detlis: string;
   end_detlis: string;
   notes: string;
-   discount:string;
-   km_price:string;
-   min_price:string;
-   add1:string;
-   f_km:string;
-
+  discount: string;
+  km_price: string;
+  min_price: string;
+  add1: string;
+  f_km: string;
 };
+
+interface TrackingData {
+  distance: string;
+  time: string;
+  price: string;
+}
 
 interface OrderTrackingModalProps {
   order: myorder;
+  trackingData?: TrackingData; // بيانات التتبع الاختيارية
   onNextStatus: (status: string) => void;
   onCallCustomer: () => void;
   onPokeCustomer: () => void;
@@ -41,6 +47,7 @@ const STATUS_STEPS = [
 
 const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
   order,
+  trackingData,
   onNextStatus,
   onCallCustomer,
   onPokeCustomer,
@@ -49,6 +56,22 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
 }) => {
   const [currentStatus, setCurrentStatus] = useState('arrived');
   const [isExpanded, setIsExpanded] = useState(true);
+  const [displayData, setDisplayData] = useState({
+    distance: order.distance_km,
+    time: order.duration_min.toString(),
+    price: order.cost
+  });
+
+  // تحديث بيانات العرض عند استقبال بيانات جديدة من Kotlin
+  useEffect(() => {
+    if (trackingData) {
+      setDisplayData({
+        distance: trackingData.distance || order.distance_km,
+        time: trackingData.time || order.duration_min.toString(),
+        price: trackingData.price || order.cost
+      });
+    }
+  }, [trackingData, order]);
 
   const handleNextStatus = () => {
     const currentIndex = STATUS_STEPS.findIndex(step => step.id === currentStatus);
@@ -74,10 +97,42 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
         <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
       </div>
 
-      {/* معلومات الطلب - تظهر في كلا الوضعين */}
-      <div dir = "rtl" className=" p-3 bg-blue-50 border-b border-gray-200">
+      {/* دوائر عرض بيانات التكلفة */}
+      <div className="p-3 bg-blue-50 border-b border-gray-200">
+        <div className="flex justify-around items-center mb-2">
+          {/* دائرة المسافة */}
+          <div className="flex flex-col items-center">
+            <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm mb-1 shadow-md">
+              <span>{displayData.distance}</span>
+              <span className="text-xs mr-1">كم</span>
+            </div>
+            <span className="text-xs text-gray-600">المسافة</span>
+          </div>
+
+          {/* دائرة الوقت */}
+          <div className="flex flex-col items-center">
+            <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm mb-1 shadow-md">
+              <span>{displayData.time}</span>
+              <span className="text-xs mr-1">د</span>
+            </div>
+            <span className="text-xs text-gray-600">الوقت</span>
+          </div>
+
+          {/* دائرة التكلفة */}
+          <div className="flex flex-col items-center">
+            <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm mb-1 shadow-md">
+              <span>{displayData.price}</span>
+              <span className="text-xs mr-1">ل.س</span>
+            </div>
+            <span className="text-xs text-gray-600">التكلفة</span>
+          </div>
+        </div>
+      </div>
+
+      {/* معلومات الطلب */}
+      <div dir="rtl" className="p-3 bg-blue-50 border-b border-gray-200">
         <div className="flex justify-between items-center text-sm">
-<div className="flex items-center">
+          <div className="flex items-center">
             <span className="text-gray-600 ml-1">:من</span>
             <span className="font-bold truncate max-w-[250px]">{order.start_text}</span>
           </div>
@@ -86,12 +141,10 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
             <span className="text-gray-600 ml-1">:إلى</span>
             <span className="font-bold truncate max-w-[250px]">{order.end_text}</span>
           </div>
-          
-         
         </div>
       </div>
 
-      {/* Status Progress - يظهر في كلا الوضعين */}
+      {/* Status Progress */}
       <div className="p-3 border-b border-gray-200">
         <div className="flex justify-between mb-3 relative">
           {STATUS_STEPS.map((step, index) => (
