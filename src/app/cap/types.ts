@@ -48,7 +48,7 @@ export type OrderDetails = {
    min_price:string;
    add1:string;
    f_km:string;
-   start_time:String;
+   start_time:string;
 
 };
 
