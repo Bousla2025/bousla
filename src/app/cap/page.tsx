@@ -609,7 +609,8 @@ const handleAcceptOrder = useCallback(async (status:string) => {
         discount:selectedOrder.discount,
         add1:selectedOrder.add1,
         f_km:selectedOrder.f_km,
-        start_time:new Date().toISOString() 
+        start_time:selectedOrder.start_time,
+        accept_time:new Date().toISOString()
       };
       
       sendToKotlin("order_accepted", JSON.stringify(orderData));
