@@ -700,8 +700,6 @@ const handleCallEmergency = useCallback(() => {
 }, []);
 
 ///استقبال بيانات متابعة الرحلة من كوتلن
-// داخل useEffect المخصص لاستقبال البيانات من Kotlin
-// داخل useEffect لاستقبال البيانات
 useEffect(() => {
   window.update_cost = (km: string, min: string, cost: string) => {
     console.log('Received cost data:', { km, min, cost });

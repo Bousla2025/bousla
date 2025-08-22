@@ -559,8 +559,8 @@ const [chosenService, setChosenService] = useState<ChildService | null>(null);
       status: "new_order",
       start_time: new Date().toISOString(),
       cost: Math.max(0, Math.ceil(finalPrice)).toString(),
-      km_price: (firstKmCost + distanceCost).toFixed(0),
-      min_price: durationCost.toFixed(0),
+      km_price: kmPrice.toFixed(0),
+      min_price: minutePrice.toFixed(0),
       discount: discount.toFixed(0),
       add1: (additionalCost + tax).toFixed(0),
       f_km:(firstKmCost).toFixed(0)
