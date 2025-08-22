@@ -690,16 +690,46 @@ useEffect(() => {
     
     if (response !== "no_open_order") {
         try {
-            const orderData: KotlinOrderData = JSON.parse(response);
+            // محاولة تحليل الرد كمصفوفة أولاً
+            const orderDataArray = JSON.parse(response);
             
-            // التحقق من أن البيانات تحتوي على id على الأقل
-            if (orderData && typeof orderData.id === 'number') {
-                handleOpenOrder(orderData);
+            if (Array.isArray(orderDataArray) && orderDataArray.length > 0) {
+                // أخذ أول عنصر في المصفوفة
+                const orderData: KotlinOrderData = orderDataArray[0];
+                
+                // التحقق من أن البيانات تحتوي على id على الأقل
+                if (orderData && typeof orderData.id === 'number') {
+                    handleOpenOrder(orderData);
+                } else {
+                    console.error('Invalid order data in array:', orderData);
+                }
+            } else if (typeof orderDataArray === 'object' && orderDataArray !== null) {
+                // إذا كان كائنًا وليس مصفوفة
+                const orderData: KotlinOrderData = orderDataArray;
+                
+                if (orderData && typeof orderData.id === 'number') {
+                    handleOpenOrder(orderData);
+                } else {
+                    console.error('Invalid order data object:', orderData);
+                }
             } else {
-                console.error('Invalid order data received:', orderData);
+                console.error('Unexpected response format:', response);
             }
         } catch (error) {
             console.error('Error parsing open order data:', error);
+            // محاولة بديلة إذا فشل التحليل
+            try {
+                if (response.startsWith('[') && response.endsWith(']')) {
+                    const cleanResponse = response.substring(1, response.length - 1);
+                    const orderData: KotlinOrderData = JSON.parse(cleanResponse);
+                    
+                    if (orderData && typeof orderData.id === 'number') {
+                        handleOpenOrder(orderData);
+                    }
+                }
+            } catch (secondError) {
+                console.error('Second attempt failed:', secondError);
+            }
         }
     } else {
         console.log('No open orders found');
