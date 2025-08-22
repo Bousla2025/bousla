@@ -8,7 +8,7 @@ import 'leaflet/dist/leaflet.css';
 import 'react-toastify/dist/ReactToastify.css';
 import { 
   Order, OrderDetails, Payment, Service, Position, 
-  Profile, TrackingData, Last_order, CaptainData
+  Profile, TrackingData, Last_order, CaptainData,KotlinOrderData
 } from './types';
 import { createCustomIcon, decodePolyline, extractMunicipality, createCarIcon } from './mapUtils';
 import { 
@@ -73,6 +73,8 @@ declare global {
     handleNewOrder?: (orderId: number) => void;
     setCaptainData?: (data: CaptainData) => void;
     update_cost?: (km:string,min:string,cost:string) =>void;
+    handleOpenOrder?: (orderData: KotlinOrderData) => void;  // إضافة هذه الدالة
+    handleOpenOrderResponse?: (response: string) => void; // إضافة هذه الدالة
     
     // إذا كنت تستخدم ReactNativeWebView
     ReactNativeWebView?: {
@@ -640,9 +642,6 @@ const handleAcceptOrder = useCallback(async (status:string) => {
 }, [selectedOrder, captainId, clearRoute]);
 
 
-
-
-
 //تعديل حالة الطلب
 const handleNextStatus = useCallback(async (status: string) => {
   if (!trackingOrder) return;
@@ -676,6 +675,91 @@ const handleNextStatus = useCallback(async (status: string) => {
     console.error('خطأ أثناء تحديث حالة الطلب:', error);
   }
 }, [trackingOrder, captainId]);
+
+///عرض الطلب المفتوح بعد اعادة تشغيل التطبيق
+// داخل مكون CaptainApp - إضافة useEffect للتحقق من الطلبات المفتوحة
+useEffect(() => {
+    // طلب التحقق من الطلبات المفتوحة من Kotlin
+    const checkForOpenOrder = () => {
+        sendToKotlin("check_open_order", "");
+    };
+
+    // تعريف دالة استقبال الرد من Kotlin
+   window.handleOpenOrderResponse = (response: string) => {
+    console.log('Open order response:', response);
+    
+    if (response !== "no_open_order") {
+        try {
+            const orderData: KotlinOrderData = JSON.parse(response);
+            
+            // التحقق من أن البيانات تحتوي على id على الأقل
+            if (orderData && typeof orderData.id === 'number') {
+                handleOpenOrder(orderData);
+            } else {
+                console.error('Invalid order data received:', orderData);
+            }
+        } catch (error) {
+            console.error('Error parsing open order data:', error);
+        }
+    } else {
+        console.log('No open orders found');
+    }
+};
+
+    // التحقق من وجود طلب مفتوح عند تحميل التطبيق
+    checkForOpenOrder();
+
+    return () => {
+        window.handleOpenOrderResponse = () => {};
+    };
+}, []);
+
+// تطوير دالة handleOpenOrder لمعالجة البيانات الكاملة
+// تطوير دالة handleOpenOrder لمعالجة البيانات الكاملة
+const handleOpenOrder = (orderData: KotlinOrderData) => {
+    console.log('Received open order:', orderData);
+    
+    // إنشاء كائن الطلب مع جميع البيانات
+    const trackingOrderData: OrderDetails = {
+        id: orderData.id,
+        ser_chi_id: orderData.ser_chi_id || 0,
+        start_text: orderData.start_text || '',
+        end_text: orderData.end_text || '',
+        distance_km: orderData.distance_km || '0.0',
+        duration_min: typeof orderData.duration_min === 'string' 
+            ? parseInt(orderData.duration_min) || 0 
+            : orderData.duration_min || 0,
+        cost: orderData.cost || '0.0',
+        user_rate: typeof orderData.user_rate === 'string' 
+            ? parseInt(orderData.user_rate) || 0 
+            : orderData.user_rate || 0,
+        start_detlis: orderData.start_detlis || '',
+        end_detlis: orderData.end_detlis || '',
+        notes: orderData.notes || 'لا توجد ملاحظات',
+        km_price: orderData.km_price || '0.0',
+        min_price: orderData.min_price || '0.0',
+        discount: orderData.discount || '0',
+        add1: orderData.add1 || '0.0',
+        f_km: orderData.f_km || '0.0',
+        start_time: orderData.start_time || new Date().toISOString()
+    };
+    
+    // تعيين حالة التتبع
+    setTrackingOrder(trackingOrderData);
+    setShowOrderTracking(true);
+    
+    // إذا كانت هناك نقاط طريق، رسم المسار
+    if (orderData.start_point && orderData.end_point) {
+        drawRoute(orderData.start_point, orderData.end_point);
+    }
+    
+    // إرسال حالة الطلب إلى Kotlin للتأكد من المزامنة
+    sendToKotlin("order_tracking_started", JSON.stringify({
+        orderId: orderData.id,
+        status: orderData.status || 'unknown'
+    }));
+};
+
 
 //الاتصال بالزبون
 const handleCallCustomer = useCallback(() => {

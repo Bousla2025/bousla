@@ -118,3 +118,27 @@ export interface CaptainData {
   phone: string;
   photo?: string | null;
 }
+
+///عند جلب طلب مفتوح من كوتلن
+export interface KotlinOrderData {
+  id: number;
+  ser_chi_id?: number;
+  start_text?: string;
+  end_text?: string;
+  distance_km?: string;
+  duration_min?: string | number;
+  cost?: string;
+  user_rate?: string | number;
+  start_detlis?: string;
+  end_detlis?: string;
+  notes?: string;
+  km_price?: string;
+  min_price?: string;
+  discount?: string;
+  add1?: string;
+  f_km?: string;
+  start_point?: string;
+  end_point?: string;
+  status?: string;
+  start_time?: string;
+}
