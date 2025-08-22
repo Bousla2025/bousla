@@ -667,6 +667,9 @@ const handleNextStatus = useCallback(async (status: string) => {
     if (result === 'success') {
       
     
+      if (status == "completed"){
+        sendToKotlin("delete_order_finish", "0");
+      }
       
       console.log(`تم تحديث حالة الطلب ${trackingOrder.id} إلى ${status} بنجاح`);
     } else {
@@ -679,7 +682,6 @@ const handleNextStatus = useCallback(async (status: string) => {
 }, [trackingOrder, captainId]);
 
 ///عرض الطلب المفتوح بعد اعادة تشغيل التطبيق
-// داخل مكون CaptainApp - إضافة useEffect للتحقق من الطلبات المفتوحة
 useEffect(() => {
     // طلب التحقق من الطلبات المفتوحة من Kotlin
     const checkForOpenOrder = () => {
