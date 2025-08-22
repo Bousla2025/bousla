@@ -519,7 +519,8 @@ const handleRefreshServices = useCallback(async () => {
             discount:order.discount,
             add1:order.add1,
             f_km:order.f_km,
-            start_time:new Date().toISOString() 
+            start_time:new Date().toISOString() ,
+            status:order.status
           });
           
           setShowOrderDetails(true);
@@ -568,7 +569,8 @@ const handleRefreshServices = useCallback(async () => {
       discount:order.discount,
       add1:order.add1,
       f_km:order.f_km,
-      start_time: new Date().toISOString()  
+      start_time: new Date().toISOString(),
+      status:order.status
     });
     
     setAcceptOrderStatus('idle');
@@ -744,7 +746,7 @@ useEffect(() => {
     };
 }, []);
 
-// تطوير دالة handleOpenOrder لمعالجة البيانات الكاملة
+
 // تطوير دالة handleOpenOrder لمعالجة البيانات الكاملة
 const handleOpenOrder = (orderData: KotlinOrderData) => {
     console.log('Received open order:', orderData);
@@ -771,10 +773,11 @@ const handleOpenOrder = (orderData: KotlinOrderData) => {
         discount: orderData.discount || '0',
         add1: orderData.add1 || '0.0',
         f_km: orderData.f_km || '0.0',
-        start_time: orderData.start_time || new Date().toISOString()
+        start_time: orderData.start_time || new Date().toISOString(),
+        status:orderData.status || 'arrived'
     };
     
-    // تعيين حالة التتبع
+    // تعيين حالة التتبع - استخدام حالة الطلب من Kotlin إذا كانت متوفرة
     setTrackingOrder(trackingOrderData);
     setShowOrderTracking(true);
     
@@ -1097,7 +1100,8 @@ useEffect(() => {
   <div className="fixed bottom-0 left-0 right-0 z-50">
     <OrderTrackingModal
       order={trackingOrder}
-      trackingData={trackingData} // تمرير بيانات التتبع
+      trackingData={trackingData}
+      initialStatus={trackingOrder.status} // تمرير حالة الطلب من البيانات
       onNextStatus={handleNextStatus}
       onCallCustomer={handleCallCustomer}
       onPokeCustomer={handlePokeCustomer}

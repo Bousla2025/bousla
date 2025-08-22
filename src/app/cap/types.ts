@@ -49,6 +49,7 @@ export type OrderDetails = {
    add1:string;
    f_km:string;
    start_time:string;
+   status:string;
 
 };
 
@@ -141,4 +142,5 @@ export interface KotlinOrderData {
   end_point?: string;
   status?: string;
   start_time?: string;
+  
 }

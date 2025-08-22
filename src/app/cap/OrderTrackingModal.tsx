@@ -31,6 +31,7 @@ interface TrackingData {
 interface OrderTrackingModalProps {
   order: myorder;
   trackingData?: TrackingData;
+  initialStatus?: string; // إضافة خاصية للحالة الأولية
   onNextStatus: (status: string) => void;
   onCallCustomer: () => void;
   onPokeCustomer: () => void;
@@ -48,13 +49,15 @@ const STATUS_STEPS = [
 const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
   order,
   trackingData,
+  initialStatus = 'arrived', // قيمة افتراضية
   onNextStatus,
   onCallCustomer,
   onPokeCustomer,
   onCallCompany,
   onCallEmergency
 }) => {
-  const [currentStatus, setCurrentStatus] = useState('arrived');
+  const [currentStatus, setCurrentStatus] = useState(initialStatus); // استخدام القيمة الأولية
+  
   const [isExpanded, setIsExpanded] = useState(true);
   const [displayData, setDisplayData] = useState({
     distance: order.distance_km,
