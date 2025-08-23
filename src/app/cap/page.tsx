@@ -668,8 +668,7 @@ const handleNextStatus = useCallback(async (status: string) => {
     if (result === 'timeout') {
       // إذا انتهت المهلة الزمنية
       setAcceptOrderStatus('error');
-      alert('فشل في تحديث الحالة. يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى.');
-      return;
+      throw new Error('فشل في تحديث الحالة. يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى.');
     }
 
     if (result === 'success') {
@@ -694,12 +693,12 @@ const handleNextStatus = useCallback(async (status: string) => {
     } else {
       console.error('فشل في تحديث حالة الطلب في السيرفر');
       setAcceptOrderStatus('error');
-      alert('فشل في تحديث الحالة. يرجى المحاولة مرة أخرى.');
+      throw new Error('فشل في تحديث الحالة. يرجى المحاولة مرة أخرى.');
     }
   } catch (error) {
     console.error('خطأ أثناء تحديث حالة الطلب:', error);
     setAcceptOrderStatus('error');
-    alert('حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.');
+    throw error; // إعادة رفع الخطأ ليتم التعامل معه في المكون الفرعي
   }
 }, [trackingOrder, captainId]);
 

@@ -75,22 +75,26 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
     }
   }, [trackingData, order]);
 
-  const handleNextStatus = async () => {
-    const currentIndex = STATUS_STEPS.findIndex(step => step.id === currentStatus);
-    if (currentIndex < STATUS_STEPS.length - 1) {
-      const nextStatus = STATUS_STEPS[currentIndex + 1].id;
-      setIsUpdating(true);
+ const handleNextStatus = async () => {
+  const currentIndex = STATUS_STEPS.findIndex(step => step.id === currentStatus);
+  if (currentIndex < STATUS_STEPS.length - 1) {
+    const nextStatus = STATUS_STEPS[currentIndex + 1].id;
+    setIsUpdating(true);
+    
+    try {
+      await onNextStatus(nextStatus);
+      // فقط في حالة النجاح، نحدث الحالة المحلية
+      setCurrentStatus(nextStatus);
+    } catch (error) {
+      console.error('Error updating status:', error);
+      // عرض رسالة الخطأ للمستخدم
       
-      try {
-        await onNextStatus(nextStatus);
-        setCurrentStatus(nextStatus);
-      } catch (error) {
-        console.error('Error updating status:', error);
-      } finally {
-        setIsUpdating(false);
-      }
+      // لا نحدث الحالة المحلية في حالة الفشل
+    } finally {
+      setIsUpdating(false);
     }
-  };
+  }
+};
 
   const getStatusIndex = (statusId: string) => {
     return STATUS_STEPS.findIndex(step => step.id === statusId);
