@@ -825,7 +825,7 @@ const handleSubmitCompletedOrder = useCallback(async () => {
   } catch (error) {
     console.error('Error submitting completed order:', error);
     setAcceptOrderStatus('error');
-    alert('حدث خطأ أثناء إرسال التحديث.');
+    
   }
 }, [completedOrderData, captainId]);
 
@@ -1203,7 +1203,7 @@ useEffect(() => {
 
 {/* واجهة ارسال الطلب المعلق */}
 {completedOrderData && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+  <div className="absolute inset-0 flex items-center justify-center z-40 backdrop-blur-md">
     <div className="bg-white p-6 rounded-lg w-96">
       <h2 className="text-xl font-bold mb-4 text-center">تفاصيل الرحلة المكتملة</h2>
       
