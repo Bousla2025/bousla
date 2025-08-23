@@ -31,13 +31,12 @@ interface TrackingData {
 interface OrderTrackingModalProps {
   order: myorder;
   trackingData?: TrackingData;
-  initialStatus?: string; // إضافة خاصية للحالة الأولية
+  initialStatus?: string;
   onNextStatus: (status: string) => void;
   onCallCustomer: () => void;
   onPokeCustomer: () => void;
   onCallCompany: () => void;
   onCallEmergency: () => void;
-  isLoading?: boolean;
 }
 
 const STATUS_STEPS = [
@@ -50,22 +49,21 @@ const STATUS_STEPS = [
 const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
   order,
   trackingData,
-  initialStatus = 'arrived', // قيمة افتراضية
+  initialStatus = 'arrived',
   onNextStatus,
   onCallCustomer,
   onPokeCustomer,
   onCallCompany,
-  onCallEmergency,
-  isLoading = false
+  onCallEmergency
 }) => {
-  const [currentStatus, setCurrentStatus] = useState(initialStatus); // استخدام القيمة الأولية
-  
+  const [currentStatus, setCurrentStatus] = useState(initialStatus);
   const [isExpanded, setIsExpanded] = useState(true);
   const [displayData, setDisplayData] = useState({
     distance: order.distance_km,
     time: order.duration_min.toString(),
     price: order.cost
   });
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     if (trackingData) {
@@ -77,12 +75,20 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
     }
   }, [trackingData, order]);
 
-  const handleNextStatus = () => {
+  const handleNextStatus = async () => {
     const currentIndex = STATUS_STEPS.findIndex(step => step.id === currentStatus);
     if (currentIndex < STATUS_STEPS.length - 1) {
       const nextStatus = STATUS_STEPS[currentIndex + 1].id;
-      setCurrentStatus(nextStatus);
-      onNextStatus(nextStatus);
+      setIsUpdating(true);
+      
+      try {
+        await onNextStatus(nextStatus);
+        setCurrentStatus(nextStatus);
+      } catch (error) {
+        console.error('Error updating status:', error);
+      } finally {
+        setIsUpdating(false);
+      }
     }
   };
 
@@ -163,22 +169,25 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
         </div>
 
         {/* زر التالي الكبير */}
-         <button
-        onClick={() => onNextStatus(STATUS_STEPS[getStatusIndex(currentStatus) + 1]?.id || 'completed')}
-        disabled={getStatusIndex(currentStatus) === STATUS_STEPS.length - 1 || isLoading}
-        className="w-full h-14 bg-blue-600 text-white rounded-lg disabled:bg-gray-400 text-base font-semibold shadow-md hover:bg-blue-700 transition-colors relative"
-      >
-        {isLoading ? (
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-            <span className="mr-2">جاري التحديث...</span>
-          </div>
-        ) : (
-          getStatusIndex(currentStatus) === STATUS_STEPS.length - 1 
-            ? 'تم الانتهاء' 
-            : 'الانتقال للمرحلة التالية'
-        )}
-      </button>
+        <button
+          onClick={handleNextStatus}
+          disabled={getStatusIndex(currentStatus) === STATUS_STEPS.length - 1 || isUpdating}
+          className="w-full h-14 bg-blue-600 text-white rounded-lg disabled:bg-gray-400 text-base font-semibold shadow-md hover:bg-blue-700 transition-colors flex items-center justify-center"
+        >
+          {isUpdating ? (
+            <div className="flex items-center">
+              <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              جاري التحديث...
+            </div>
+          ) : (
+            getStatusIndex(currentStatus) === STATUS_STEPS.length - 1 
+              ? 'تم الانتهاء' 
+              : 'الانتقال للمرحلة التالية'
+          )}
+        </button>
       </div>
 
       {/* المحتوى الإضافي - يظهر فقط في الوضع الممتد */}

@@ -650,58 +650,58 @@ const handleAcceptOrder = useCallback(async (status:string) => {
 const handleNextStatus = useCallback(async (status: string) => {
   if (!trackingOrder) return;
 
-  // إظهار مؤشر التحميل
+  // حالة التحميل - إظهار مؤشر الانتظار
   setAcceptOrderStatus('loading');
 
   try {
-    if (status === "completed") {
+    if (status == "completed") {
       sendToKotlin("stop_tracking_services", "0");
+      setShowOrderTracking(false);
     }
 
-    // محاولة تحديث حالة الطلب في السيرفر
-    const result = await update_order_status(trackingOrder.id, captainId, status);
-    
+    // إرسال حالة الطلب الجديدة إلى السيرفر مع مهلة زمنية
+    const result = await Promise.race([
+      update_order_status(trackingOrder.id, captainId, status),
+      new Promise((resolve) => setTimeout(() => resolve('timeout'), 10000)) // مهلة 10 ثواني
+    ]);
+
+    if (result === 'timeout') {
+      // إذا انتهت المهلة الزمنية
+      setAcceptOrderStatus('error');
+      alert('فشل في تحديث الحالة. يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى.');
+      return;
+    }
+
     if (result === 'success') {
-      // إرسال تحديث الحالة إلى Kotlin
+      // إرسال الطلب لكوتلن
       sendToKotlin("order_status_update", JSON.stringify({
         orderId: trackingOrder.id,
         status: status,
         date_time: new Date().toISOString() 
       }));
       
-      if (status === "completed") {
+      if (status == "completed") {
         sendToKotlin("delete_order_finish", "0");
-        setShowOrderTracking(false);
       }
       
       console.log(`تم تحديث حالة الطلب ${trackingOrder.id} إلى ${status} بنجاح`);
       setAcceptOrderStatus('success');
       
+      // إخفاء مؤشر الانتظار بعد نجاح العملية
+      setTimeout(() => {
+        setAcceptOrderStatus('idle');
+      }, 2000);
     } else {
       console.error('فشل في تحديث حالة الطلب في السيرفر');
       setAcceptOrderStatus('error');
-      
-      // إذا كانت الحالة completed وفشل الإرسال، نحفظ الطلب محلياً
-      if (status === "completed") {
-      //  await saveOrderLocally(trackingOrder, status);
-        sendToKotlin("stop_tracking_services", "0");
-        setShowOrderTracking(false);
-      }
+      alert('فشل في تحديث الحالة. يرجى المحاولة مرة أخرى.');
     }
   } catch (error) {
     console.error('خطأ أثناء تحديث حالة الطلب:', error);
     setAcceptOrderStatus('error');
-    
-    // إذا كانت الحالة completed وفشل الإرسال، نحفظ الطلب محلياً
-    if (status === "completed") {
-     // await saveOrderLocally(trackingOrder, status);
-      sendToKotlin("stop_tracking_services", "0");
-      setShowOrderTracking(false);
-    }
+    alert('حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.');
   }
 }, [trackingOrder, captainId]);
-
-
 
 ///عرض الطلب المفتوح بعد اعادة تشغيل التطبيق
 useEffect(() => {
