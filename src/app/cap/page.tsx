@@ -679,6 +679,12 @@ const handleNextStatus = useCallback(async (status: string) => {
     if (status == "completed") {
       sendToKotlin("stop_tracking_services", "0");
       setShowOrderTracking(false);
+      sendToKotlin("order_status_update", JSON.stringify({
+        orderId: trackingOrder.id,
+        status: status,
+        date_time: new Date().toISOString() 
+      }));
+      
     }
 
     // إرسال حالة الطلب الجديدة إلى السيرفر مع مهلة زمنية
