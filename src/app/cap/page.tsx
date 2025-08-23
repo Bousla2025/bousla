@@ -149,6 +149,15 @@ const [trackingOrder, setTrackingOrder] = useState<OrderDetails | null>(null);
   
   const mapRef = useRef<L.Map | null>(null);
 
+  //دالة لمتابعة ارسال الطلب المكتمل وغير مرسل
+  const [completedOrderData, setCompletedOrderData] = useState<{
+  order: KotlinOrderData;
+  real_km: string;
+  real_min: string;
+  real_price: string;
+  end_time: string;
+} | null>(null);
+
   // استقبال بيانات الكابتن
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -521,7 +530,14 @@ const handleRefreshServices = useCallback(async () => {
             add1:order.add1,
             f_km:order.f_km,
             start_time:new Date().toISOString() ,
-            status:order.status
+            status:order.status,
+             real_km:order.real_km,
+        real_min:order.real_min,
+        real_price:order.real_price,
+        real_street:order.real_street,
+        waiting_min:order.waiting_min,
+        end_time:order.end_time,
+
           });
           
           setShowOrderDetails(true);
@@ -571,7 +587,13 @@ const handleRefreshServices = useCallback(async () => {
       add1:order.add1,
       f_km:order.f_km,
       start_time: new Date().toISOString(),
-      status:order.status
+      status:order.status,
+      real_km:order.real_km,
+        real_min:order.real_min,
+        real_price:order.real_price,
+        real_street:order.real_street,
+        waiting_min:order.waiting_min,
+        end_time:order.end_time,
     });
     
     setAcceptOrderStatus('idle');
@@ -704,70 +726,103 @@ const handleNextStatus = useCallback(async (status: string) => {
 
 ///عرض الطلب المفتوح بعد اعادة تشغيل التطبيق
 useEffect(() => {
-    // طلب التحقق من الطلبات المفتوحة من Kotlin
-    const checkForOpenOrder = () => {
-        sendToKotlin("check_open_order", "");
-    };
+  // طلب التحقق من الطلبات المفتوحة من Kotlin
+  const checkForOpenOrder = () => {
+    sendToKotlin("check_open_order", "");
+  };
 
-    // تعريف دالة استقبال الرد من Kotlin
-   window.handleOpenOrderResponse = (response: string) => {
+  // تعريف دالة استقبال الرد من Kotlin
+  window.handleOpenOrderResponse = (response: string) => {
     console.log('Open order response:', response);
     
     if (response !== "no_open_order") {
-        try {
-            // محاولة تحليل الرد كمصفوفة أولاً
-            const orderDataArray = JSON.parse(response);
-            
-            if (Array.isArray(orderDataArray) && orderDataArray.length > 0) {
-                // أخذ أول عنصر في المصفوفة
-                const orderData: KotlinOrderData = orderDataArray[0];
-                
-                // التحقق من أن البيانات تحتوي على id على الأقل
-                if (orderData && typeof orderData.id === 'number') {
-                    handleOpenOrder(orderData);
-                } else {
-                    console.error('Invalid order data in array:', orderData);
-                }
-            } else if (typeof orderDataArray === 'object' && orderDataArray !== null) {
-                // إذا كان كائنًا وليس مصفوفة
-                const orderData: KotlinOrderData = orderDataArray;
-                
-                if (orderData && typeof orderData.id === 'number') {
-                    handleOpenOrder(orderData);
-                } else {
-                    console.error('Invalid order data object:', orderData);
-                }
-            } else {
-                console.error('Unexpected response format:', response);
-            }
-        } catch (error) {
-            console.error('Error parsing open order data:', error);
-            // محاولة بديلة إذا فشل التحليل
-            try {
-                if (response.startsWith('[') && response.endsWith(']')) {
-                    const cleanResponse = response.substring(1, response.length - 1);
-                    const orderData: KotlinOrderData = JSON.parse(cleanResponse);
-                    
-                    if (orderData && typeof orderData.id === 'number') {
-                        handleOpenOrder(orderData);
-                    }
-                }
-            } catch (secondError) {
-                console.error('Second attempt failed:', secondError);
-            }
+      try {
+        // محاولة تحليل الرد كمصفوفة أولاً
+        const orderDataArray = JSON.parse(response);
+        let orderData: KotlinOrderData | null = null;
+        
+        if (Array.isArray(orderDataArray) && orderDataArray.length > 0) {
+          // أخذ أول عنصر في المصفوفة
+          orderData = orderDataArray[0];
+        } else if (typeof orderDataArray === 'object' && orderDataArray !== null) {
+          // إذا كان كائنًا وليس مصفوفة
+          orderData = orderDataArray;
         }
+        
+        if (orderData && typeof orderData.id === 'number') {
+          if (orderData.status === "completed") {
+            // عرض واجهة الطلب المكتمل
+            setCompletedOrderData({
+              order: orderData,
+              real_km: orderData.real_km || "0",
+              real_min: orderData.real_min || "0", 
+              real_price: orderData.real_price || "0",
+              end_time: orderData.end_time || new Date().toISOString()
+            });
+          } else {
+            handleOpenOrder(orderData);
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing open order data:', error);
+      }
     } else {
-        console.log('No open orders found');
+      console.log('No open orders found');
     }
-};
+  };
 
-    // التحقق من وجود طلب مفتوح عند تحميل التطبيق
-    checkForOpenOrder();
+  // التحقق من وجود طلب مفتوح عند تحميل التطبيق
+  checkForOpenOrder();
 
-    return () => {
-        window.handleOpenOrderResponse = () => {};
-    };
+  return () => {
+    window.handleOpenOrderResponse = () => {};
+  };
 }, []);
+
+//عرض رسالة متابعة الطلب المكتمل وغير مرسل للسيرفر
+const handleSubmitCompletedOrder = useCallback(async () => {
+  if (!completedOrderData) return;
+
+  try {
+    setAcceptOrderStatus('loading');
+    
+    // إرسال تحديث الحالة للسيرفر
+    const result = await update_order_status(
+      completedOrderData.order.id, 
+      captainId, 
+      "completed"
+    );
+
+    if (result === 'success') {
+      // إرسال البيانات إلى Kotlin
+      sendToKotlin("order_status_update", JSON.stringify({
+        orderId: completedOrderData.order.id,
+        status: "completed",
+        date_time: completedOrderData.end_time,
+        real_km: completedOrderData.real_km,
+        real_min: completedOrderData.real_min,
+        real_price: completedOrderData.real_price
+      }));
+
+      sendToKotlin("delete_order_finish", "0");
+      
+      setAcceptOrderStatus('success');
+      setCompletedOrderData(null);
+      
+      setTimeout(() => {
+        setAcceptOrderStatus('idle');
+      }, 2000);
+    } else {
+      setAcceptOrderStatus('error');
+      alert('فشل في إرسال التحديث. يرجى المحاولة مرة أخرى.');
+    }
+  } catch (error) {
+    console.error('Error submitting completed order:', error);
+    setAcceptOrderStatus('error');
+    alert('حدث خطأ أثناء إرسال التحديث.');
+  }
+}, [completedOrderData, captainId]);
+
 
 
 // تطوير دالة handleOpenOrder لمعالجة البيانات الكاملة
@@ -797,7 +852,13 @@ const handleOpenOrder = (orderData: KotlinOrderData) => {
         add1: orderData.add1 || '0.0',
         f_km: orderData.f_km || '0.0',
         start_time: orderData.start_time || new Date().toISOString(),
-        status:orderData.status || 'arrived'
+        status:orderData.status || 'arrived',
+        real_km:orderData.real_km,
+        real_min:orderData.real_min,
+        real_price:orderData.real_price,
+        real_street:orderData.real_street,
+        waiting_min:orderData.waiting_min,
+        end_time:orderData.end_time,
     };
     
     // تعيين حالة التتبع - استخدام حالة الطلب من Kotlin إذا كانت متوفرة
@@ -1131,6 +1192,64 @@ useEffect(() => {
       onCallCompany={handleCallCompany}
       onCallEmergency={handleCallEmergency}
     />
+  </div>
+)}
+
+{/* واجهة ارسال الطلب المعلق */}
+{completedOrderData && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white p-6 rounded-lg w-96">
+      <h2 className="text-xl font-bold mb-4 text-center">تفاصيل الرحلة المكتملة</h2>
+      
+      <div className="space-y-3 mb-4">
+        <div className="flex justify-between">
+          <span className="font-semibold">المسافة المقطوعة:</span>
+          <span>{completedOrderData.real_km} كم</span>
+        </div>
+        
+        <div className="flex justify-between">
+          <span className="font-semibold">الوقت المستغرق:</span>
+          <span>{completedOrderData.real_min} دقيقة</span>
+        </div>
+        
+        <div className="flex justify-between">
+          <span className="font-semibold">التكلفة النهائية:</span>
+          <span>{completedOrderData.real_price} ل.س</span>
+        </div>
+        
+        <div className="flex justify-between">
+          <span className="font-semibold">وقت الانتهاء:</span>
+          <span>{new Date(completedOrderData.end_time).toLocaleString('ar-SA')}</span>
+        </div>
+      </div>
+
+      <div className="flex justify-between space-x-3">
+        <button
+          onClick={() => setCompletedOrderData(null)}
+          className="flex-1 bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400"
+        >
+          إلغاء
+        </button>
+        
+        <button
+          onClick={handleSubmitCompletedOrder}
+          disabled={acceptOrderStatus === 'loading'}
+          className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center"
+        >
+          {acceptOrderStatus === 'loading' ? (
+            <>
+              <svg className="animate-spin h-5 w-5 mr-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              جاري الإرسال...
+            </>
+          ) : (
+            'إرسال التحديث'
+          )}
+        </button>
+      </div>
+    </div>
   </div>
 )}
 

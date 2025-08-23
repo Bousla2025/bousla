@@ -29,6 +29,12 @@ export type Order = {
    min_price:string;
    add1:string;
    f_km:string;
+   real_km:string,
+   real_min:string,
+   real_price:string,
+   real_street:string,
+   waiting_min:string,
+   end_time:string,
 };
 
 export type OrderDetails = {
@@ -50,6 +56,13 @@ export type OrderDetails = {
    f_km:string;
    start_time:string;
    status:string;
+   real_km:string,
+   real_min:string,
+   real_price:string,
+   real_street:string,
+   waiting_min:string,
+   end_time:string,
+  
 
 };
 
@@ -142,5 +155,11 @@ export interface KotlinOrderData {
   end_point?: string;
   status?: string;
   start_time?: string;
+  real_km:string,
+   real_min:string,
+   real_price:string,
+   real_street:string,
+   waiting_min:string,
+   end_time:string,
   
 }
