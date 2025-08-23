@@ -650,46 +650,58 @@ const handleAcceptOrder = useCallback(async (status:string) => {
 const handleNextStatus = useCallback(async (status: string) => {
   if (!trackingOrder) return;
 
+  // إظهار مؤشر التحميل
   setAcceptOrderStatus('loading');
+
   try {
-    
+    if (status === "completed") {
+      sendToKotlin("stop_tracking_services", "0");
+    }
 
-  if (status == "completed"){
-    sendToKotlin("stop_tracking_services", "0");
-    setShowOrderTracking(false);
-  }
-
-    // إرسال حالة الطلب الجديدة إلى السيرفر
+    // محاولة تحديث حالة الطلب في السيرفر
     const result = await update_order_status(trackingOrder.id, captainId, status);
     
     if (result === 'success') {
+      // إرسال تحديث الحالة إلى Kotlin
+      sendToKotlin("order_status_update", JSON.stringify({
+        orderId: trackingOrder.id,
+        status: status,
+        date_time: new Date().toISOString() 
+      }));
       
-toast.success('تم تحديث حالة الطلب بنجاح');
-      //ارسال الطلب لكوتلن
-    sendToKotlin("order_status_update", JSON.stringify({
-    orderId: trackingOrder.id,
-    status: status,
-    date_time: new Date().toISOString() 
-    }));
-    
-      if (status == "completed"){
+      if (status === "completed") {
         sendToKotlin("delete_order_finish", "0");
+        setShowOrderTracking(false);
       }
       
       console.log(`تم تحديث حالة الطلب ${trackingOrder.id} إلى ${status} بنجاح`);
-       setAcceptOrderStatus('success');
+      setAcceptOrderStatus('success');
+      
     } else {
-      toast.error('فشل في تحديث حالة الطلب');
       console.error('فشل في تحديث حالة الطلب في السيرفر');
       setAcceptOrderStatus('error');
-      // يمكنك إضافة رسالة خطأ للمستخدم هنا إذا لزم الأمر
+      
+      // إذا كانت الحالة completed وفشل الإرسال، نحفظ الطلب محلياً
+      if (status === "completed") {
+      //  await saveOrderLocally(trackingOrder, status);
+        sendToKotlin("stop_tracking_services", "0");
+        setShowOrderTracking(false);
+      }
     }
   } catch (error) {
     console.error('خطأ أثناء تحديث حالة الطلب:', error);
-     toast.error('حدث خطأ أثناء تحديث حالة الطلب');
+    setAcceptOrderStatus('error');
+    
+    // إذا كانت الحالة completed وفشل الإرسال، نحفظ الطلب محلياً
+    if (status === "completed") {
+     // await saveOrderLocally(trackingOrder, status);
+      sendToKotlin("stop_tracking_services", "0");
       setShowOrderTracking(false);
+    }
   }
 }, [trackingOrder, captainId]);
+
+
 
 ///عرض الطلب المفتوح بعد اعادة تشغيل التطبيق
 useEffect(() => {
