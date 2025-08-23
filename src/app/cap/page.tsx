@@ -1204,7 +1204,7 @@ useEffect(() => {
 {/* واجهة ارسال الطلب المعلق */}
 {completedOrderData && (
   <div className="absolute inset-0 flex items-center justify-center z-40 backdrop-blur-md">
-    <div className="bg-white p-6 rounded-lg w-96">
+            <div className="bg-white p-6 rounded-lg w-80 ">
       <h2 className="text-xl font-bold mb-4 text-center">تفاصيل الرحلة المكتملة</h2>
       
       <div className="space-y-3 mb-4">
