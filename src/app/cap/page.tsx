@@ -650,12 +650,7 @@ const handleNextStatus = useCallback(async (status: string) => {
   if (!trackingOrder) return;
 
   try {
-    //ارسال الطلب لكوتلن
-    sendToKotlin("order_status_update", JSON.stringify({
-    orderId: trackingOrder.id,
-    status: status,
-    date_time: new Date().toISOString() 
-}));
+    
 
   if (status == "completed"){
     sendToKotlin("stop_tracking_services", "0");
@@ -667,6 +662,13 @@ const handleNextStatus = useCallback(async (status: string) => {
     
     if (result === 'success') {
       
+
+      //ارسال الطلب لكوتلن
+    sendToKotlin("order_status_update", JSON.stringify({
+    orderId: trackingOrder.id,
+    status: status,
+    date_time: new Date().toISOString() 
+    }));
     
       if (status == "completed"){
         sendToKotlin("delete_order_finish", "0");
