@@ -37,6 +37,7 @@ interface OrderTrackingModalProps {
   onPokeCustomer: () => void;
   onCallCompany: () => void;
   onCallEmergency: () => void;
+  isLoading?: boolean;
 }
 
 const STATUS_STEPS = [
@@ -54,7 +55,8 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
   onCallCustomer,
   onPokeCustomer,
   onCallCompany,
-  onCallEmergency
+  onCallEmergency,
+  isLoading = false
 }) => {
   const [currentStatus, setCurrentStatus] = useState(initialStatus); // استخدام القيمة الأولية
   
@@ -161,15 +163,22 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
         </div>
 
         {/* زر التالي الكبير */}
-        <button
-          onClick={handleNextStatus}
-          disabled={getStatusIndex(currentStatus) === STATUS_STEPS.length - 1}
-          className="w-full h-14 bg-blue-600 text-white rounded-lg disabled:bg-gray-400 text-base font-semibold shadow-md hover:bg-blue-700 transition-colors"
-        >
-          {getStatusIndex(currentStatus) === STATUS_STEPS.length - 1 
+         <button
+        onClick={() => onNextStatus(STATUS_STEPS[getStatusIndex(currentStatus) + 1]?.id || 'completed')}
+        disabled={getStatusIndex(currentStatus) === STATUS_STEPS.length - 1 || isLoading}
+        className="w-full h-14 bg-blue-600 text-white rounded-lg disabled:bg-gray-400 text-base font-semibold shadow-md hover:bg-blue-700 transition-colors relative"
+      >
+        {isLoading ? (
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+            <span className="mr-2">جاري التحديث...</span>
+          </div>
+        ) : (
+          getStatusIndex(currentStatus) === STATUS_STEPS.length - 1 
             ? 'تم الانتهاء' 
-            : 'الانتقال للمرحلة التالية'}
-        </button>
+            : 'الانتقال للمرحلة التالية'
+        )}
+      </button>
       </div>
 
       {/* المحتوى الإضافي - يظهر فقط في الوضع الممتد */}

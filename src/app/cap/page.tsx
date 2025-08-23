@@ -650,6 +650,7 @@ const handleAcceptOrder = useCallback(async (status:string) => {
 const handleNextStatus = useCallback(async (status: string) => {
   if (!trackingOrder) return;
 
+  setAcceptOrderStatus('loading');
   try {
     
 
@@ -676,14 +677,17 @@ toast.success('تم تحديث حالة الطلب بنجاح');
       }
       
       console.log(`تم تحديث حالة الطلب ${trackingOrder.id} إلى ${status} بنجاح`);
+       setAcceptOrderStatus('success');
     } else {
       toast.error('فشل في تحديث حالة الطلب');
       console.error('فشل في تحديث حالة الطلب في السيرفر');
+      setAcceptOrderStatus('error');
       // يمكنك إضافة رسالة خطأ للمستخدم هنا إذا لزم الأمر
     }
   } catch (error) {
     console.error('خطأ أثناء تحديث حالة الطلب:', error);
      toast.error('حدث خطأ أثناء تحديث حالة الطلب');
+      setShowOrderTracking(false);
   }
 }, [trackingOrder, captainId]);
 
