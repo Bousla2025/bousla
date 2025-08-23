@@ -6,6 +6,7 @@ import { Suspense } from 'react';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import 'leaflet/dist/leaflet.css';
 import 'react-toastify/dist/ReactToastify.css';
+import { toast } from 'react-toastify';
 import { 
   Order, OrderDetails, Payment, Service, Position, 
   Profile, TrackingData, Last_order, CaptainData,KotlinOrderData
@@ -662,7 +663,7 @@ const handleNextStatus = useCallback(async (status: string) => {
     
     if (result === 'success') {
       
-
+toast.success('تم تحديث حالة الطلب بنجاح');
       //ارسال الطلب لكوتلن
     sendToKotlin("order_status_update", JSON.stringify({
     orderId: trackingOrder.id,
@@ -676,11 +677,13 @@ const handleNextStatus = useCallback(async (status: string) => {
       
       console.log(`تم تحديث حالة الطلب ${trackingOrder.id} إلى ${status} بنجاح`);
     } else {
+      toast.error('فشل في تحديث حالة الطلب');
       console.error('فشل في تحديث حالة الطلب في السيرفر');
       // يمكنك إضافة رسالة خطأ للمستخدم هنا إذا لزم الأمر
     }
   } catch (error) {
     console.error('خطأ أثناء تحديث حالة الطلب:', error);
+     toast.error('حدث خطأ أثناء تحديث حالة الطلب');
   }
 }, [trackingOrder, captainId]);
 
