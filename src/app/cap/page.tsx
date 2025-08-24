@@ -934,22 +934,22 @@ useEffect(() => {
 
   //ايقاف او تشغيل الخدمات
   const handleServiceToggle = useCallback(async (service: Service) => {
-    const newActive = service.active === 1 ? 0 : 1;
-    const originalActive = service.active;
+  const newActive = service.active === 1 ? 0 : 1;
+  const originalActive = service.active;
 
+  setServices(prev => prev.map(s => 
+    s.id === service.id ? { ...s, active: newActive } : s
+  ));
+
+  try {
+    await updateServiceStatus(service.id, newActive, captainId);
+  } catch (error) {
     setServices(prev => prev.map(s => 
-      s.id === service.id ? { ...s, active: newActive } : s
+      s.id === service.id ? { ...s, active: originalActive } : s
     ));
-
-    try {
-      await updateServiceStatus(service.id, newActive,captainId);
-    } catch (error) {
-      setServices(prev => prev.map(s => 
-        s.id === service.id ? { ...s, active: originalActive } : s
-      ));
-      console.error('Failed to update service:', error);
-    }
-  }, []);
+    console.error('Failed to update service:', error);
+  }
+}, [captainId]);
 
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {

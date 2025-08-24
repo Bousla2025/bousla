@@ -189,12 +189,12 @@ export const updateOrderStatus = async (
 
 
 // دوال أخرى
-export const updateServiceStatus = async (serviceId: number, newActive: number,cap_id:number) => {
+export const updateServiceStatus = async (serviceId: number, newActive: number, cap_id: number) => {
   try {
     const response = await fetchData('cap_ser', {
       ser_id: serviceId.toString(),
       active: newActive.toString(),
-      cap_id: cap_id.toString()
+      cap_id: cap_id.toString() // إرسال cap_id في POST
     }, 'POST');
 
     if (!response.success) {
