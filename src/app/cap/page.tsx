@@ -537,6 +537,8 @@ const handleRefreshServices = useCallback(async () => {
         real_street:order.real_street,
         waiting_min:order.waiting_min,
         end_time:order.end_time,
+        start_point:order.start_point,
+        end_point:order.end_point
 
           });
           
@@ -594,6 +596,8 @@ const handleRefreshServices = useCallback(async () => {
         real_street:order.real_street,
         waiting_min:order.waiting_min,
         end_time:order.end_time,
+        start_point:order.start_point,
+        end_point:order.end_point
     });
     
     setAcceptOrderStatus('idle');
@@ -633,7 +637,9 @@ const handleAcceptOrder = useCallback(async (status:string) => {
         add1:selectedOrder.add1,
         f_km:selectedOrder.f_km,
         start_time:selectedOrder.start_time,
-        accept_time:new Date().toISOString()
+        accept_time:new Date().toISOString(),
+        start_point:selectedOrder.start_point,
+        end_point:selectedOrder.end_point
       };
       
       sendToKotlin("order_accepted", JSON.stringify(orderData));
@@ -644,7 +650,7 @@ const handleAcceptOrder = useCallback(async (status:string) => {
       setTimeout(() => {
         setShowOrderDetails(false);
         setAcceptOrderStatus('idle');
-        clearRoute();
+        //clearRoute();
         
         // إظهار واجهة متابعة الطلب
         setTrackingOrder(selectedOrder);
@@ -664,6 +670,7 @@ const handleAcceptOrder = useCallback(async (status:string) => {
   } catch (error) {
     console.error('Error accepting order:', error);
     setAcceptOrderStatus('error');
+    
   }
 }, [selectedOrder, captainId, clearRoute]);
 
@@ -865,6 +872,8 @@ const handleOpenOrder = (orderData: KotlinOrderData) => {
         real_street:orderData.real_street,
         waiting_min:orderData.waiting_min,
         end_time:orderData.end_time,
+        start_point:orderData.start_point || "",
+        end_point:orderData.end_point || ""
     };
     
     // تعيين حالة التتبع - استخدام حالة الطلب من Kotlin إذا كانت متوفرة
