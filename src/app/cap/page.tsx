@@ -942,7 +942,7 @@ useEffect(() => {
     ));
 
     try {
-      await updateServiceStatus(service.id, newActive);
+      await updateServiceStatus(service.id, newActive,captainId);
     } catch (error) {
       setServices(prev => prev.map(s => 
         s.id === service.id ? { ...s, active: originalActive } : s
