@@ -12,6 +12,7 @@ import GlobeLoader from "../components/GlobeLoader";
 import ChildServicesList from "../components/ChildServicesList";
 
 
+
 type Coordinates = [number, number];
 
 interface ChildService {
@@ -272,39 +273,52 @@ const [chosenService, setChosenService] = useState<ChildService | null>(null);
   };
 
   const handleAutoSearch = async (query: string, type: "start" | "end") => {
-    if (!query.trim()) {
-      if (type === "start") setStartSearchResults([]);
-      else setEndSearchResults([]);
-      return;
-    }
-    
-    setSearching(true);
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&viewbox=35.9,33.3,36.6,33.7&bounded=1`
-      );
-      const data: SearchResult[] = await response.json();
-      
-      if (type === "start") {
-        setStartSearchResults(data);
-        if (data.length === 0) {
-          toast.error("لم يتم العثور على نتائج للبحث عن مكان الانطلاق");
-        }
-      } else {
-        setEndSearchResults(data);
-        if (data.length === 0) {
-          toast.error("لم يتم العثور على نتائج للبحث عن مكان الوصول");
+  if (!query.trim()) {
+    if (type === "start") setStartSearchResults([]);
+    else setEndSearchResults([]);
+    return;
+  }
+  
+  setSearching(true);
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&viewbox=35.9,33.3,36.6,33.7&bounded=1`,
+      {
+        headers: {
+          'User-Agent': 'bousla/1.0 (tamer.n.co@gmail.com)', // ← هنا
+          'Accept-Language': 'ar',
+          'Accept': 'application/json'
         }
       }
-    } catch (error) {
-      console.error("Error searching locations:", error);
-      toast.error("حدث خطأ أثناء البحث");
-      if (type === "start") setStartSearchResults([]);
-      else setEndSearchResults([]);
-    } finally {
-      setSearching(false);
+    );
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-  };
+    
+    const data: SearchResult[] = await response.json();
+    
+    if (type === "start") {
+      setStartSearchResults(data);
+      if (data.length === 0) {
+        toast.error("لم يتم العثور على نتائج للبحث عن مكان الانطلاق");
+      }
+    } else {
+      setEndSearchResults(data);
+      if (data.length === 0) {
+        toast.error("لم يتم العثور على نتائج للبحث عن مكان الوصول");
+      }
+    }
+  } catch (error) {
+    console.error("Error searching locations:", error);
+    toast.error("حدث خطأ أثناء البحث");
+    if (type === "start") setStartSearchResults([]);
+    else setEndSearchResults([]);
+  } finally {
+    setSearching(false);
+  }
+};
+
 
   useEffect(() => {
     const handleSearch = () => {
