@@ -788,6 +788,8 @@ const handleNextStatus = useCallback(async (status: string) => {
         status: status,
         date_time: new Date().toISOString() 
       }));
+
+      clearRoute()
       
     }
 
@@ -918,10 +920,14 @@ const handleSubmitCompletedOrder = useCallback(async () => {
       
       setAcceptOrderStatus('success');
       setCompletedOrderData(null);
+
+      clearRoute()
       
       setTimeout(() => {
         setAcceptOrderStatus('idle');
       }, 2000);
+
+
     } else {
       setAcceptOrderStatus('error');
       alert('فشل في إرسال التحديث. يرجى المحاولة مرة أخرى.');
