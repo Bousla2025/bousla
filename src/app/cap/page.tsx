@@ -435,58 +435,155 @@ const handleRefreshServices = useCallback(async () => {
   }, []);
 
   const drawRoute = useCallback(async (startPoint: string, endPoint: string) => {
-    if (!startPoint || !endPoint || !icons.redIcon || !icons.greenIcon) {
-      clearRoute();
+  console.log('Attempting to draw route from:', startPoint, 'to:', endPoint);
+  
+  // تنظيف المسار الحالي أولاً
+  clearRoute();
+  
+  if (!startPoint || !endPoint) {
+    console.error('Missing start or end point');
+    return;
+  }
+
+  // التحقق من تنسيق الإحداثيات - هذه هي المشكلة المحتملة!
+  // البيانات المرسلة: "33.4804008,36.2912197 33.557122,36.3226634"
+  // يبدو أن هناك مسافة بين النقطتين بدلاً من فاصلة منقوطة
+  
+  let startCoords, endCoords;
+  
+  // محاولة تحليل التنسيق المختلف
+  if (startPoint.includes(' ') && endPoint.includes(' ')) {
+    // إذا كان التنسيق "lat,lng lat,lng"
+    const points = startPoint.split(' ');
+    if (points.length === 2) {
+      startCoords = points[0].split(',');
+      endCoords = points[1].split(',');
+    } else {
+      console.error('Unexpected coordinate format with space:', startPoint);
       return;
     }
+  } else {
+    // التنسيق الطبيعي "lat,lng"
+    startCoords = startPoint.split(',');
+    endCoords = endPoint.split(',');
+  }
+  
+  if (startCoords.length !== 2 || endCoords.length !== 2) {
+    console.error('Invalid coordinate format. Expected "lat,lng" or "lat,lng lat,lng"');
+    console.error('Start coords:', startCoords, 'End coords:', endCoords);
+    return;
+  }
 
-    try {
-      const [startLat, startLng] = startPoint.split(',').map(Number);
-      const [endLat, endLng] = endPoint.split(',').map(Number);
-      
-      const response = await fetch(
-        `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full`
-      );
-      const data = await response.json();
-      
-      let coordinates: [number, number][] = [];
-      
-      if (data.code === 'Ok' && data.routes?.[0]) {
-        const route = data.routes[0];
-        
-        if (typeof route.geometry === 'string') {
-          const decoded = decodePolyline(route.geometry);
-          coordinates = decoded.map(point => [point.lat, point.lng]);
-        } else if (route.geometry?.coordinates) {
-          coordinates = route.geometry.coordinates.map((coord: number[]) => [coord[1], coord[0]]);
-        }
-      }
-      
-      if (coordinates.length === 0) {
-        coordinates = [
-          [startLat, startLng],
-          [endLat, endLng]
-        ];
-      }
-      
-      setRoutePoints(coordinates);
-      
-      setMarkers([
-        { 
-          position: [startLat, startLng], 
-          icon: icons.redIcon as L.Icon,
-          popup: "نقطة الانطلاق"
-        },
-        { 
-          position: [endLat, endLng], 
-          icon: icons.greenIcon as L.Icon,
-          popup: "نقطة الوصول"
-        }]);
-      
-    } catch (error) {
-      console.error('Error calculating route:', error);
+  const startLat = parseFloat(startCoords[0].trim());
+  const startLng = parseFloat(startCoords[1].trim());
+  const endLat = parseFloat(endCoords[0].trim());
+  const endLng = parseFloat(endCoords[1].trim());
+  
+  if (isNaN(startLat) || isNaN(startLng) || isNaN(endLat) || isNaN(endLng)) {
+    console.error('Invalid coordinates:', {startLat, startLng, endLat, endLng});
+    return;
+  }
+
+  console.log('Parsed coordinates:', {startLat, startLng, endLat, endLng});
+
+  try {
+    console.log('Fetching route from OSRM...');
+    const response = await fetch(
+      `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full`
+    );
+    
+    if (!response.ok) {
+      throw new Error(`OSRM API error: ${response.status}`);
     }
-  }, [clearRoute, icons.redIcon, icons.greenIcon]);
+    
+    const data = await response.json();
+    console.log('OSRM response:', data);
+    
+    let coordinates: [number, number][] = [];
+    
+    if (data.code === 'Ok' && data.routes?.[0]) {
+      const route = data.routes[0];
+      
+      if (typeof route.geometry === 'string') {
+        const decoded = decodePolyline(route.geometry);
+        coordinates = decoded.map(point => [point.lat, point.lng]);
+      } else if (route.geometry?.coordinates) {
+        coordinates = route.geometry.coordinates.map((coord: number[]) => [coord[1], coord[0]]);
+      }
+      
+      console.log('Route calculated with', coordinates.length, 'points');
+    }
+    
+    if (coordinates.length === 0) {
+      console.log('Using straight line as fallback');
+      coordinates = [
+        [startLat, startLng],
+        [endLat, endLng]
+      ];
+    }
+    
+    setRoutePoints(coordinates);
+    
+    // استخدام أيقونات مؤقتة إذا لم تكن الأيقونات الرئيسية جاهزة
+    let redIconToUse = icons.redIcon;
+    let greenIconToUse = icons.greenIcon;
+    
+    if (!redIconToUse) {
+      redIconToUse = await createCustomIcon('red');
+    }
+    if (!greenIconToUse) {
+      greenIconToUse = await createCustomIcon('green');
+    }
+    
+    setMarkers([
+      { 
+        position: [startLat, startLng], 
+        icon: redIconToUse,
+        popup: "نقطة الانطلاق"
+      },
+      { 
+        position: [endLat, endLng], 
+        icon: greenIconToUse,
+        popup: "نقطة الوصول"
+      }
+    ]);
+    
+    console.log('Route and markers set successfully');
+    
+  } catch (error) {
+    console.error('Error calculating route:', error);
+    // رسم خط مباشر كبديل في حالة الخطأ
+    setRoutePoints([
+      [startLat, startLng],
+      [endLat, endLng]
+    ]);
+    
+    let redIconToUse = icons.redIcon;
+    let greenIconToUse = icons.greenIcon;
+    
+    if (!redIconToUse) {
+      redIconToUse = await createCustomIcon('red');
+    }
+    if (!greenIconToUse) {
+      greenIconToUse = await createCustomIcon('green');
+    }
+    
+    setMarkers([
+      { 
+        position: [startLat, startLng], 
+        icon: redIconToUse,
+        popup: "نقطة الانطلاق"
+      },
+      { 
+        position: [endLat, endLng], 
+        icon: greenIconToUse,
+        popup: "نقطة الوصول"
+      }
+    ]);
+    
+    console.log('Fallback straight line route set');
+  }
+}, [clearRoute, icons.redIcon, icons.greenIcon]);
 
   const updateZoneRadius = useCallback((radius: number) => {
     const newRadius = Math.max(0.2, Math.min(5, radius));
