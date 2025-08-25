@@ -839,7 +839,8 @@ const handleSubmitCompletedOrder = useCallback(async () => {
 
 
 // تطوير دالة handleOpenOrder لمعالجة البيانات الكاملة
-const handleOpenOrder = (orderData: KotlinOrderData) => {
+
+const handleOpenOrder = useCallback((orderData: KotlinOrderData) => {
     console.log('Received open order:', orderData);
     
     // إنشاء كائن الطلب مع جميع البيانات
@@ -865,15 +866,15 @@ const handleOpenOrder = (orderData: KotlinOrderData) => {
         add1: orderData.add1 || '0.0',
         f_km: orderData.f_km || '0.0',
         start_time: orderData.start_time || new Date().toISOString(),
-        status:orderData.status || 'arrived',
-        real_km:orderData.real_km,
-        real_min:orderData.real_min,
-        real_price:orderData.real_price,
-        real_street:orderData.real_street,
-        waiting_min:orderData.waiting_min,
-        end_time:orderData.end_time,
-        start_point:orderData.start_point || "",
-        end_point:orderData.end_point || ""
+        status: orderData.status || 'arrived',
+        real_km: orderData.real_km,
+        real_min: orderData.real_min,
+        real_price: orderData.real_price,
+        real_street: orderData.real_street,
+        waiting_min: orderData.waiting_min,
+        end_time: orderData.end_time,
+        start_point: orderData.start_point || "",
+        end_point: orderData.end_point || ""
     };
     
     // تعيين حالة التتبع - استخدام حالة الطلب من Kotlin إذا كانت متوفرة
@@ -882,7 +883,10 @@ const handleOpenOrder = (orderData: KotlinOrderData) => {
     
     // إذا كانت هناك نقاط طريق، رسم المسار
     if (orderData.start_point && orderData.end_point) {
+        console.log('Drawing route for open order:', orderData.start_point, orderData.end_point);
         drawRoute(orderData.start_point, orderData.end_point);
+    } else {
+        console.warn('Missing start_point or end_point in open order data');
     }
     
     // إرسال حالة الطلب إلى Kotlin للتأكد من المزامنة
@@ -890,7 +894,7 @@ const handleOpenOrder = (orderData: KotlinOrderData) => {
         orderId: orderData.id,
         status: orderData.status || 'unknown'
     }));
-};
+}, [drawRoute]); // أضف drawRoute كتبعية
 
 
 //الاتصال بالزبون
