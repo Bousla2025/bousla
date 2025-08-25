@@ -450,15 +450,36 @@ const [chosenService, setChosenService] = useState<ChildService | null>(null);
       let locationName = "الموقع الحالي";
 
       try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
-        );
-        const data = await response.json();
-        locationName = data.display_name || 
-                      (data.address?.road ? `شارع ${data.address.road}` : locationName);
-      } catch (reverseError) {
-        console.log("Reverse geocoding failed, using coordinates only", reverseError);
+  const response = await fetch(
+    `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+    {
+      headers: {
+        'User-Agent': 'MyTravelApp/1.0 (contact@myapp.com)', // إضافة User-Agent
+        'Accept-Language': 'ar', // إضافة اللغة العربية
+        'Accept': 'application/json'
       }
+    }
+  );
+  
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  
+  // تحسين استخراج اسم الموقع بالعربية
+  locationName = data.display_name || 
+                (data.address?.road ? `شارع ${data.address.road}` : 
+                 data.address?.neighbourhood ? `حي ${data.address.neighbourhood}` :
+                 data.address?.suburb ? `ضاحية ${data.address.suburb}` :
+                 data.address?.city ? data.address.city :
+                 data.address?.town ? data.address.town :
+                 data.address?.village ? data.address.village :
+                 `موقع عند ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+} catch (reverseError) {
+  console.error("Reverse geocoding failed, using coordinates only", reverseError);
+  locationName = `موقع عند ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+}
 
       handleSelectLocation(latitude, longitude, locationName, type);
       
