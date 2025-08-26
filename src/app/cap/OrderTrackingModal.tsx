@@ -37,6 +37,7 @@ interface OrderTrackingModalProps {
   onPokeCustomer: () => void;
   onCallCompany: () => void;
   onCallEmergency: () => void;
+   onOpenYandex: () => void;
 }
 
 const STATUS_STEPS = [
@@ -54,7 +55,8 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
   onCallCustomer,
   onPokeCustomer,
   onCallCompany,
-  onCallEmergency
+  onCallEmergency,
+  onOpenYandex
 }) => {
   const [currentStatus, setCurrentStatus] = useState(initialStatus);
   const [isExpanded, setIsExpanded] = useState(true);
@@ -134,7 +136,7 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
 
           {/* دائرة التكلفة */}
           <div className="flex flex-col items-center">
-            <div className="w-16 h-16 bg-transparent border-2 border-blue-500 rounded-full flex flex-col items-center justify-center text-blue-500 font-bold shadow-md">
+            <div className="w-32 h-16 bg-transparent border-2 border-blue-500 rounded-full flex flex-col items-center justify-center text-blue-500 font-bold shadow-md">
               <span className="text-lg">{displayData.price}</span>
               <span className="text-xs">ل.س</span>
             </div>
@@ -224,7 +226,7 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                 </svg>
               </div>
-              <span className="text-xs">اتصال</span>
+              <span className="text-xs">اتصال بالزبون</span>
             </button>
 
             <button
@@ -250,7 +252,7 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h2m-2 0h-4m-2 0H9m2 0h2m2 0h2M9 7h2m2 0h2M9 11h2m2 0h2m-2 4h2" />
                 </svg>
               </div>
-              <span className="text-xs">الشركة</span>
+              <span className="text-xs">اتصال بالشركة</span>
             </button>
 
             <button
@@ -263,8 +265,22 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
-              <span className="text-xs">طوارئ</span>
+              <span className="text-xs">اتصال بالطوارئ</span>
             </button>
+
+<button
+  onClick={onOpenYandex}
+  className="flex flex-col items-center justify-center"
+  title="فتح Yandex"
+>
+  <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center mb-1 shadow-md hover:bg-purple-700 transition-colors">
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+    </svg>
+  </div>
+  <span className="text-xs">Yandex</span>
+</button>
+
           </div>
         </>
       )}

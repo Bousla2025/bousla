@@ -76,6 +76,9 @@ declare global {
     update_cost?: (km:string,min:string,cost:string) =>void;
     handleOpenOrder?: (orderData: KotlinOrderData) => void;  // إضافة هذه الدالة
     handleOpenOrderResponse?: (response: string) => void; // إضافة هذه الدالة
+
+     openYandexNavigation?: (startLat: number, startLng: number, endLat: number, endLng: number) => void;
+  
     
     // إذا كنت تستخدم ReactNativeWebView
     ReactNativeWebView?: {
@@ -999,6 +1002,18 @@ const handleOpenOrder = useCallback((orderData: KotlinOrderData) => {
     }));
 }, [drawRoute]); // أضف drawRoute كتبعية
 
+//فتح الطريق في yandex
+const handleOpenYandex = useCallback(() => {
+  if (trackingOrder && trackingOrder.start_point && trackingOrder.end_point) {
+    const yandexData = {
+      start_point: trackingOrder.start_point,
+      end_point: trackingOrder.end_point
+    };
+    sendToKotlin("open_yandex", JSON.stringify(yandexData));
+  } else {
+    toast.error("لا توجد إحداثيات متاحة لفتح Yandex");
+  }
+}, [trackingOrder]);
 
 //الاتصال بالزبون
 const handleCallCustomer = useCallback(() => {
@@ -1313,6 +1328,7 @@ useEffect(() => {
       onPokeCustomer={handlePokeCustomer}
       onCallCompany={handleCallCompany}
       onCallEmergency={handleCallEmergency}
+      onOpenYandex={handleOpenYandex}
     />
   </div>
 )}
