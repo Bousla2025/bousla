@@ -145,7 +145,27 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
         </div>
       </div>
 
-      {/* Status Progress */}
+    
+
+      {/* المحتوى الإضافي - يظهر فقط في الوضع الممتد */}
+      {isExpanded && (
+        <>
+          {/* معلومات الطلب */}
+          <div dir="rtl" className="p-3 bg-blue-50 border-b border-gray-200">
+            <div className="flex justify-between items-center text-sm">
+              <div className="flex items-center">
+                <span className="text-gray-600 ml-1">:من</span>
+                <span className="font-bold truncate max-w-[250px]">{order.start_text}</span>
+              </div>
+
+              <div className="flex items-center">
+                <span className="text-gray-600 ml-1">:إلى</span>
+                <span className="font-bold truncate max-w-[250px]">{order.end_text}</span>
+              </div>
+            </div>
+          </div>
+
+            {/* Status Progress */}
       <div className="p-3 border-b border-gray-200">
         <div className="flex justify-between mb-3 relative">
           {STATUS_STEPS.map((step, index) => (
@@ -195,24 +215,6 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
           )}
         </button>
       </div>
-
-      {/* المحتوى الإضافي - يظهر فقط في الوضع الممتد */}
-      {isExpanded && (
-        <>
-          {/* معلومات الطلب */}
-          <div dir="rtl" className="p-3 bg-blue-50 border-b border-gray-200">
-            <div className="flex justify-between items-center text-sm">
-              <div className="flex items-center">
-                <span className="text-gray-600 ml-1">:من</span>
-                <span className="font-bold truncate max-w-[250px]">{order.start_text}</span>
-              </div>
-
-              <div className="flex items-center">
-                <span className="text-gray-600 ml-1">:إلى</span>
-                <span className="font-bold truncate max-w-[250px]">{order.end_text}</span>
-              </div>
-            </div>
-          </div>
 
           {/* الأزرار الدائرية */}
           <div className="p-3 flex justify-around items-center">
