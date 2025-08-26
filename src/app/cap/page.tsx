@@ -134,6 +134,7 @@ const [isRefreshingServices, setIsRefreshingServices] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [showOrderTracking, setShowOrderTracking] = useState(false);
 const [trackingOrder, setTrackingOrder] = useState<OrderDetails | null>(null);
+const [trackingPath, setTrackingPath] = useState<Position[]>([]);
   const [carMarker, setCarMarker] = useState<{
     position: Position;
     icon: L.Icon;
@@ -326,33 +327,36 @@ const [trackingOrder, setTrackingOrder] = useState<OrderDetails | null>(null);
   }, [menusLoaded, icons.carIcon, currentLocation]);
 
   // داخل مكون CaptainApp، أضف useEffect لاستقبال الموقع
-  useEffect(() => {
-    // تعريف دالة استقبال الموقع من Kotlin
-    window.updateLocation = (lat: number, lng: number) => {
-      const newLocation: Position = [lat, lng];
-      
-      // تحديث حالة الموقع الحالي
-      setCurrentLocation(newLocation);
-      
-      // تحديث مركز الدائرة
-      setCircleCenter(newLocation);
-      
-      // تحديث موقع السيارة فقط
-      if (icons.carIcon) {
-        setCarMarker({
-          position: newLocation,
-          icon: icons.carIcon
-        });
-      }
-      
-      // إزالة أي كود يقوم بتغيير مركز الخريطة أو مستوى zoom تلقائياً
-      // لا تستخدم mapRef.current.flyTo() أو setView() هنا
-    };
+ useEffect(() => {
+  // تعريف دالة استقبال الموقع من Kotlin
+  window.updateLocation = (lat: number, lng: number) => {
+    const newLocation: Position = [lat, lng];
+    
+    // تحديث حالة الموقع الحالي
+    setCurrentLocation(newLocation);
+    
+    // تحديث مركز الدائرة
+    setCircleCenter(newLocation);
+    
+    // تحديث موقع السيارة فقط
+    if (icons.carIcon) {
+      setCarMarker({
+        position: newLocation,
+        icon: icons.carIcon
+      });
+    }
+    
+    // إذا كان هناك طلب مفتوح، أضف الموقع إلى مسار التتبع
+    if (trackingOrder) {
+      setTrackingPath(prevPath => [...prevPath, newLocation]);
+    }
+  };
 
-    return () => {
-      window.updateLocation = () => {};
-    };
-  }, [icons.carIcon]);
+  return () => {
+    window.updateLocation = () => {};
+  };
+}, [icons.carIcon, trackingOrder]);
+
 
   // تحميل الأيقونات بعد تحميل القوائم
   useEffect(() => {
@@ -792,8 +796,9 @@ const handleNextStatus = useCallback(async (status: string) => {
         date_time: new Date().toISOString() 
       }));
 
-      clearRoute()
-      
+      // مسح مسار التتبع
+      setTrackingPath([]);
+      clearRoute();
     }
 
     // إرسال حالة الطلب الجديدة إلى السيرفر مع مهلة زمنية
@@ -835,7 +840,7 @@ const handleNextStatus = useCallback(async (status: string) => {
   } catch (error) {
     console.error('خطأ أثناء تحديث حالة الطلب:', error);
     setAcceptOrderStatus('error');
-    throw error; // إعادة رفع الخطأ ليتم التعامل معه في المكون الفرعي
+    throw error;
   }
 }, [trackingOrder, captainId]);
 
@@ -1164,29 +1169,22 @@ useEffect(() => {
             <Suspense fallback={<div className="h-full w-full bg-gray-100 flex items-center justify-center">
               <div className="text-gray-500">جاري تحميل الخريطة...</div>
             </div>}>
-              <MapContainer 
-                center={currentLocation || DEFAULT_POSITION} 
-                zoom={mapZoom} 
-                style={{ height: '100%', width: '100%' }}
-                zoomControl={false}
-                ref={mapRef}
-              >
-                <MapComponent 
-                  center={currentLocation || DEFAULT_POSITION}
-                  zoom={mapZoom}
-                  routePoints={routePoints}
-                  markers={[
-                    ...markers,
-                    ...(carMarker ? [{
-                      position: carMarker.position,
-                      icon: carMarker.icon,
-                      popup: "موقعك الحالي"
-                    }] : [])
-                  ]}
-                  circleCenter={circleCenter}
-                  circleRadius={circleRadius}
-                />
-              </MapContainer>
+              <MapComponent 
+  center={currentLocation || DEFAULT_POSITION}
+  zoom={mapZoom}
+  routePoints={routePoints}
+  trackingPath={trackingPath} // تمرير مسار التتبع
+  markers={[
+    ...markers,
+    ...(carMarker ? [{
+      position: carMarker.position,
+      icon: carMarker.icon,
+      popup: "موقعك الحالي"
+    }] : [])
+  ]}
+  circleCenter={circleCenter}
+  circleRadius={circleRadius}
+/>
             </Suspense>
           ) : (
             <div className="h-full w-full bg-gray-100 flex items-center justify-center">
