@@ -110,7 +110,7 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
     <div dir="rtl" className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-lg z-50 border-t border-gray-200 transition-all duration-300">
       {/* زر التصغير/التكبير */}
       <div className="flex justify-center pt-2 pb-1 cursor-pointer" onClick={toggleExpand}>
-        <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
+        <div className="w-10 h-1 bg-red-600 rounded-full"></div>
       </div>
 
       {/* دوائر عرض بيانات التكلفة */}
