@@ -11,7 +11,6 @@ interface MapComponentProps {
   center: Position;
   zoom: number;
   routePoints?: Position[];
-  trackingPath?: Position[];
   markers?: {position: Position, icon: L.Icon, popup: string}[];
   circleCenter?: Position;
   circleRadius?: number;
@@ -34,7 +33,6 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   markers = [],
   circleCenter,
   circleRadius,
-  trackingPath
 }) => {
   const [isClient, setIsClient] = useState(false);
   const [markerIcons, setMarkerIcons] = useState<{[key: string]: L.Icon}>({});
@@ -78,21 +76,6 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           lineJoin="round"
         />
       )}
-
-      {/* مسار تتبع الرحلة */}
-{trackingPath && trackingPath.length > 1 && (
-  <Polyline 
-    positions={trackingPath}
-    color="#FF8C00" // لون برتقالي
-    weight={4}
-    opacity={0.8}
-    lineCap="round"
-    lineJoin="round"
-    dashArray="10, 10" // خط متقطع
-  />
-)}
-
-      
       
       {markers.map((marker, index) => (
         <Marker 
