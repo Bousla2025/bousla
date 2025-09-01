@@ -79,6 +79,7 @@ declare global {
 
      openYandexNavigation?: (startLat: number, startLng: number, endLat: number, endLng: number) => void;
   
+     handleStopTrackingButton?: () => void;
     
     // إذا كنت تستخدم ReactNativeWebView
     ReactNativeWebView?: {
@@ -1063,6 +1064,29 @@ useEffect(() => {
   };
 }, [trackingOrder]);
 
+//ايقاف زر نشط 
+// داخل useEffect الرئيسي لإعداد الاستماع للأحداث
+useEffect(() => {
+  // تعريف دالة استقبال أمر إيقاف التتبع من Kotlin
+  window.handleStopTrackingButton = () => {
+    console.log('Received stop tracking button command from Android');
+    
+    // إيقاف حالة النشاط
+    setActive(false);
+    
+    // إخفاء واجهة تتبع الطلب إذا كانت مفتوحة
+    //setShowOrderTracking(false);
+    
+    // تنظيف المسار
+    clearRoute();
+    
+  
+  };
+
+  return () => {
+    window.handleStopTrackingButton = () => {};
+  };
+}, [clearRoute]);
   //ايقاف او تشغيل الخدمات
   const handleServiceToggle = useCallback(async (service: Service) => {
   const newActive = service.active === 1 ? 0 : 1;
