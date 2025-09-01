@@ -2,7 +2,16 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { TileLayer, Marker, Popup, Polyline, Circle, useMap } from 'react-leaflet';
+import { 
+  TileLayer, 
+  Marker, 
+  Popup, 
+  Polyline, 
+  Circle, 
+  useMap, 
+  CircleMarker, 
+  Tooltip 
+} from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Position } from './types';
 import { createCustomIcon, createCarIcon } from './mapUtils';
@@ -14,7 +23,28 @@ interface MapComponentProps {
   markers?: {position: Position, icon: L.Icon, popup: string}[];
   circleCenter?: Position;
   circleRadius?: number;
+  radiusText?: {position: Position, text: string} | null;
 }
+
+// مكون لعرض نص نصف القطر
+const RadiusText: React.FC<{ position: Position; text: string }> = ({ position, text }) => {
+  return (
+    <CircleMarker
+      center={position}
+      radius={0} // دائرة غير مرئية
+      fillOpacity={0}
+      stroke={false}
+    >
+      <Tooltip 
+        permanent 
+        direction="center" 
+        className="radius-tooltip"
+      >
+        {text}
+      </Tooltip>
+    </CircleMarker>
+  );
+};
 
 const MapUpdater = ({ center, zoom }: { center: Position, zoom: number }) => {
   const map = useMap();
@@ -33,6 +63,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   markers = [],
   circleCenter,
   circleRadius,
+  radiusText,
 }) => {
   const [isClient, setIsClient] = useState(false);
   const [markerIcons, setMarkerIcons] = useState<{[key: string]: L.Icon}>({});
@@ -44,7 +75,6 @@ export const MapComponent: React.FC<MapComponentProps> = ({
     const loadIcons = async () => {
       const icons: {[key: string]: L.Icon} = {};
       
-      // يمكنك إضافة أيقونات أخرى هنا حسب الحاجة
       icons['car'] = await createCarIcon();
       icons['red'] = await createCustomIcon('red');
       icons['green'] = await createCustomIcon('green');
@@ -53,6 +83,32 @@ export const MapComponent: React.FC<MapComponentProps> = ({
     };
     
     loadIcons();
+
+    // إضافة CSS للـ Tooltip
+    const style = document.createElement('style');
+    style.textContent = `
+      .radius-tooltip {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        font-weight: bold !important;
+        font-size: 16px !important;
+        color: #000 !important;
+        text-shadow: 
+          -1px -1px 0 #fff,  
+          1px -1px 0 #fff,
+          -1px 1px 0 #fff,
+          1px 1px 0 #fff !important;
+      }
+      .radius-tooltip::before {
+        display: none !important;
+      }
+    `;
+    document.head.appendChild(style);
+
+    return () => {
+      document.head.removeChild(style);
+    };
   }, []);
 
   if (!isClient) return null;
@@ -93,6 +149,13 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           radius={circleRadius}
           color="red"
           fillOpacity={0.1}
+        />
+      )}
+
+      {radiusText && (
+        <RadiusText 
+          position={radiusText.position} 
+          text={radiusText.text} 
         />
       )}
     </>

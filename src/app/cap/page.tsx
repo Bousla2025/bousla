@@ -21,6 +21,8 @@ import { OrderDetailsModal } from './OrderDetailsModal';
 import { BetterLuckMessage } from './BetterLuckMessage';
 import OrderTrackingModal from './OrderTrackingModal';
 
+const [radiusText, setRadiusText] = useState<{position: Position, text: string} | null>(null);
+
 // تحميل مكونات القوائم أولاً
 const DynamicProfileMenu = dynamic(
   () => import('./menu/ProfileMenu').then((mod) => mod.ProfileMenu),
@@ -590,10 +592,40 @@ const handleRefreshServices = useCallback(async () => {
 }, [clearRoute, icons.redIcon, icons.greenIcon]);
 
   const updateZoneRadius = useCallback((radius: number) => {
-    const newRadius = Math.max(0.2, Math.min(5, radius));
-    setZoneRadius(newRadius);
-    setCircleRadius(newRadius * 1000);
-  }, []);
+  const newRadius = Math.max(0.2, Math.min(5, radius));
+  setZoneRadius(newRadius);
+  
+  const radiusInMeters = newRadius * 1000;
+  setCircleRadius(radiusInMeters);
+  
+  // تحديث نص نصف القطر في منتصف الدائرة
+  if (currentLocation) {
+    setRadiusText({
+      position: currentLocation,
+      text: `${newRadius} كم`
+    });
+  }
+}, [currentLocation]);
+
+// تأكد من تمرير radiusText إلى MapComponent
+<MapComponent 
+  center={currentLocation || DEFAULT_POSITION}
+  zoom={mapZoom}
+  routePoints={routePoints}
+  markers={[
+    ...markers,
+    ...(carMarker ? [{
+      position: carMarker.position,
+      icon: carMarker.icon,
+      popup: "موقعك الحالي"
+    }] : [])
+  ]}
+  circleCenter={circleCenter}
+  circleRadius={circleRadius}
+  radiusText={radiusText} // أضف هذا السطر
+/>
+
+  
 
   const handleMyLocation = useCallback(() => {
     if (currentLocation && mapRef.current) {
@@ -1211,6 +1243,7 @@ useEffect(() => {
                   circleCenter={circleCenter}
                   circleRadius={circleRadius}
                 />
+                
               </MapContainer>
             </Suspense>
           ) : (
