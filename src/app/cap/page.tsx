@@ -120,7 +120,7 @@ export default function CaptainApp() {
   const [routePoints, setRoutePoints] = useState<Position[]>([]);
   const [markers, setMarkers] = useState<{position: Position, icon: L.Icon, popup: string}[]>([]);
   const [circleCenter, setCircleCenter] = useState<Position>(DEFAULT_POSITION);
-  const [circleRadius, setCircleRadius] = useState(2000);
+  const [circleRadius, setCircleRadius] = useState(1000);
   const [mapZoom, setMapZoom] = useState(14);
   const [isUpdatingService, setIsUpdatingService] = useState<number | null>(null);
   const [isRefreshingPayments, setIsRefreshingPayments] = useState(false);
@@ -452,10 +452,7 @@ const handleRefreshServices = useCallback(async () => {
     return;
   }
 
-  // التحقق من تنسيق الإحداثيات - هذه هي المشكلة المحتملة!
-  // البيانات المرسلة: "33.4804008,36.2912197 33.557122,36.3226634"
-  // يبدو أن هناك مسافة بين النقطتين بدلاً من فاصلة منقوطة
-  
+ 
   let startCoords, endCoords;
   
   // محاولة تحليل التنسيق المختلف
