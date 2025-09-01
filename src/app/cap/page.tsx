@@ -598,6 +598,8 @@ const handleRefreshServices = useCallback(async () => {
   
   const radiusInMeters = newRadius * 1000;
   setCircleRadius(radiusInMeters);
+
+  sendToKotlin("update_zone",newRadius.toString())
   
   // تحديث نص نصف القطر في منتصف الدائرة
   if (currentLocation) {
@@ -608,23 +610,8 @@ const handleRefreshServices = useCallback(async () => {
   }
 }, [currentLocation]);
 
-// تأكد من تمرير radiusText إلى MapComponent
-<MapComponent 
-  center={currentLocation || DEFAULT_POSITION}
-  zoom={mapZoom}
-  routePoints={routePoints}
-  markers={[
-    ...markers,
-    ...(carMarker ? [{
-      position: carMarker.position,
-      icon: carMarker.icon,
-      popup: "موقعك الحالي"
-    }] : [])
-  ]}
-  circleCenter={circleCenter}
-  circleRadius={circleRadius}
-  radiusText={radiusText} // أضف هذا السطر
-/>
+
+
 
   
 
@@ -1229,21 +1216,21 @@ useEffect(() => {
                 ref={mapRef}
               >
                 <MapComponent 
-                  center={currentLocation || DEFAULT_POSITION}
-                  zoom={mapZoom}
-                  routePoints={routePoints}
-                  
-                  markers={[
-                    ...markers,
-                    ...(carMarker ? [{
-                      position: carMarker.position,
-                      icon: carMarker.icon,
-                      popup: "موقعك الحالي"
-                    }] : [])
-                  ]}
-                  circleCenter={circleCenter}
-                  circleRadius={circleRadius}
-                />
+  center={currentLocation || DEFAULT_POSITION}
+  zoom={mapZoom}
+  routePoints={routePoints}
+  markers={[
+    ...markers,
+    ...(carMarker ? [{
+      position: carMarker.position,
+      icon: carMarker.icon,
+      popup: "موقعك الحالي"
+    }] : [])
+  ]}
+  circleCenter={circleCenter}
+  circleRadius={circleRadius}
+  radiusText={radiusText} // أضف هذا السطر
+/>
                 
               </MapContainer>
             </Suspense>
