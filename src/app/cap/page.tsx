@@ -93,7 +93,7 @@ declare global {
 export default function CaptainApp() {
   // State
   const [active, setActive] = useState(false);
-  const [zoneRadius, setZoneRadius] = useState(2);
+  const [zoneRadius, setZoneRadius] = useState(1);
   const [orders, setOrders] = useState<Order[]>([]);
   const [lastorder, setlastorder] = useState<Last_order[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -599,13 +599,13 @@ const handleRefreshServices = useCallback(async () => {
   const radiusInMeters = newRadius * 1000;
   setCircleRadius(radiusInMeters);
 
-  sendToKotlin("update_zone",newRadius.toString())
+  sendToKotlin("update_zone", newRadius.toFixed(1)); // رقم واحد بعد الفاصلة
   
   // تحديث نص نصف القطر في منتصف الدائرة
   if (currentLocation) {
     setRadiusText({
       position: currentLocation,
-      text: `${newRadius} كم`
+      text: `${newRadius.toFixed(1)} كم` // هنا أيضًا لتكون متسقة
     });
   }
 }, [currentLocation]);

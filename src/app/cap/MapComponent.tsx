@@ -156,6 +156,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         <RadiusText 
           position={radiusText.position} 
           text={radiusText.text} 
+          
         />
       )}
     </>
