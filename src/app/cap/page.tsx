@@ -21,7 +21,7 @@ import { OrderDetailsModal } from './OrderDetailsModal';
 import { BetterLuckMessage } from './BetterLuckMessage';
 import OrderTrackingModal from './OrderTrackingModal';
 
-const [radiusText, setRadiusText] = useState<{position: Position, text: string} | null>(null);
+
 
 // تحميل مكونات القوائم أولاً
 const DynamicProfileMenu = dynamic(
@@ -154,6 +154,7 @@ const [trackingOrder, setTrackingOrder] = useState<OrderDetails | null>(null);
   const [menusLoaded, setMenusLoaded] = useState(false); // حالة جديدة لتتبع تحميل القوائم
   
   const mapRef = useRef<L.Map | null>(null);
+  const [radiusText, setRadiusText] = useState<{position: Position, text: string} | null>(null);
 
   //دالة لمتابعة ارسال الطلب المكتمل وغير مرسل
   const [completedOrderData, setCompletedOrderData] = useState<{
