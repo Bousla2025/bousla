@@ -9,7 +9,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { toast } from 'react-toastify';
 import { 
   Order, OrderDetails, Payment, Service, Position, 
-  Profile, TrackingData, Last_order, CaptainData,KotlinOrderData
+  Profile, TrackingData, Last_order, CaptainData, KotlinOrderData
 } from './types';
 import { createCustomIcon, decodePolyline, extractMunicipality, createCarIcon } from './mapUtils';
 import { 
@@ -20,8 +20,6 @@ import {
 import { OrderDetailsModal } from './OrderDetailsModal';
 import { BetterLuckMessage } from './BetterLuckMessage';
 import OrderTrackingModal from './OrderTrackingModal';
-
-
 
 // تحميل مكونات القوائم أولاً
 const DynamicProfileMenu = dynamic(
@@ -76,12 +74,14 @@ declare global {
     handleNewOrder?: (orderId: number) => void;
     setCaptainData?: (data: CaptainData) => void;
     update_cost?: (km:string,min:string,cost:string) =>void;
-    handleOpenOrder?: (orderData: KotlinOrderData) => void;  // إضافة هذه الدالة
-    handleOpenOrderResponse?: (response: string) => void; // إضافة هذه الدالة
-
-     openYandexNavigation?: (startLat: number, startLng: number, endLat: number, endLng: number) => void;
-  
-     handleStopTrackingButton?: () => void;
+    handleOpenOrder?: (orderData: KotlinOrderData) => void;
+    handleOpenOrderResponse?: (response: string) => void;
+    openYandexNavigation?: (startLat: number, startLng: number, endLat: number, endLng: number) => void;
+    handleStopTrackingButton?: () => void;
+    
+    // دالات جديدة لتتبع المسار
+    updateOrderLocation?: (orderId: number, lat: number, lng: number) => void;
+    updateOrderRoute?: (orderId: number, routeData: string) => void;
     
     // إذا كنت تستخدم ReactNativeWebView
     ReactNativeWebView?: {
@@ -125,7 +125,7 @@ export default function CaptainApp() {
   const [isUpdatingService, setIsUpdatingService] = useState<number | null>(null);
   const [isRefreshingPayments, setIsRefreshingPayments] = useState(false);
   const [isRefreshingLastOrders, setIsRefreshingLastOrders] = useState(false);
-const [isRefreshingServices, setIsRefreshingServices] = useState(false);
+  const [isRefreshingServices, setIsRefreshingServices] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<OrderDetails | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
@@ -136,7 +136,7 @@ const [isRefreshingServices, setIsRefreshingServices] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [showOrderTracking, setShowOrderTracking] = useState(false);
-const [trackingOrder, setTrackingOrder] = useState<OrderDetails | null>(null);
+  const [trackingOrder, setTrackingOrder] = useState<OrderDetails | null>(null);
   const [carMarker, setCarMarker] = useState<{
     position: Position;
     icon: L.Icon;
@@ -151,19 +151,25 @@ const [trackingOrder, setTrackingOrder] = useState<OrderDetails | null>(null);
     greenIcon: null
   });
   const [captainId, setCaptainId] = useState<number>(0);
-  const [menusLoaded, setMenusLoaded] = useState(false); // حالة جديدة لتتبع تحميل القوائم
+  const [menusLoaded, setMenusLoaded] = useState(false);
   
+  // حالة جديدة لتتبع المسار النشط
+  const [activeRoute, setActiveRoute] = useState<{
+    orderId: number;
+    points: Position[];
+  } | null>(null);
+
   const mapRef = useRef<L.Map | null>(null);
   const [radiusText, setRadiusText] = useState<{position: Position, text: string} | null>(null);
 
   //دالة لمتابعة ارسال الطلب المكتمل وغير مرسل
   const [completedOrderData, setCompletedOrderData] = useState<{
-  order: KotlinOrderData;
-  real_km: string;
-  real_min: string;
-  real_price: string;
-  end_time: string;
-} | null>(null);
+    order: KotlinOrderData;
+    real_km: string;
+    real_min: string;
+    real_price: string;
+    end_time: string;
+  } | null>(null);
 
   // استقبال بيانات الكابتن
   useEffect(() => {
@@ -379,6 +385,52 @@ const [trackingOrder, setTrackingOrder] = useState<OrderDetails | null>(null);
     }
   }, [menusLoaded]);
 
+  // استقبال تحديثات الموقع للطلبات النشطة
+  useEffect(() => {
+    // تعريف دالة استقبال تحديثات الموقع من Kotlin للطلبات النشطة
+    window.updateOrderLocation = (orderId: number, lat: number, lng: number) => {
+      console.log('Received location update for order:', orderId, lat, lng);
+      
+      // إذا كان هذا الطلب هو الطلب النشط الحالي
+      if (activeRoute && activeRoute.orderId === orderId) {
+        // إضافة النقطة الجديدة إلى المسار
+        const newPoint: Position = [lat, lng];
+        setActiveRoute(prev => prev ? {
+          ...prev,
+          points: [...prev.points, newPoint]
+        } : null);
+        
+        // تحديث موقع السيارة على الخريطة
+        if (icons.carIcon) {
+          setCarMarker({
+            position: newPoint,
+            icon: icons.carIcon
+          });
+        }
+      }
+    };
+
+    // تعريف دالة استقبال مسار كامل من Kotlin
+    window.updateOrderRoute = (orderId: number, routeData: string) => {
+      try {
+        const points = JSON.parse(routeData) as Position[];
+        console.log('Received full route for order:', orderId, points.length, 'points');
+        
+        setActiveRoute({
+          orderId,
+          points
+        });
+      } catch (error) {
+        console.error('Error parsing route data:', error);
+      }
+    };
+
+    return () => {
+      window.updateOrderLocation = () => {};
+      window.updateOrderRoute = () => {};
+    };
+  }, [activeRoute, icons.carIcon]);
+
   // Callbacks
   const fetchInitialData = useCallback(async () => {
     try {
@@ -406,26 +458,26 @@ const [trackingOrder, setTrackingOrder] = useState<OrderDetails | null>(null);
   }, [captainId]);
 
   const handleRefreshLastOrders = useCallback(async () => {
-  setIsRefreshingLastOrders(true);
-  try {
-    await fetchLastOrders();
-  } catch (error) {
-    console.error('Error refreshing last orders:', error);
-  } finally {
-    setIsRefreshingLastOrders(false);
-  }
-}, [fetchLastOrders]);
+    setIsRefreshingLastOrders(true);
+    try {
+      await fetchLastOrders();
+    } catch (error) {
+      console.error('Error refreshing last orders:', error);
+    } finally {
+      setIsRefreshingLastOrders(false);
+    }
+  }, [fetchLastOrders]);
 
-const handleRefreshServices = useCallback(async () => {
-  setIsRefreshingServices(true);
-  try {
-    await fetchInitialData();
-  } catch (error) {
-    console.error('Error refreshing services:', error);
-  } finally {
-    setIsRefreshingServices(false);
-  }
-}, [fetchInitialData]);
+  const handleRefreshServices = useCallback(async () => {
+    setIsRefreshingServices(true);
+    try {
+      await fetchInitialData();
+    } catch (error) {
+      console.error('Error refreshing services:', error);
+    } finally {
+      setIsRefreshingServices(false);
+    }
+  }, [fetchInitialData]);
 
   const handleActivate = useCallback(() => {
     const newActiveState = !active;
@@ -438,179 +490,173 @@ const handleRefreshServices = useCallback(async () => {
   const clearRoute = useCallback(() => {
     setRoutePoints([]);
     setMarkers([]);
-   // setCarMarker(null);
+    setActiveRoute(null);
   }, []);
 
   const drawRoute = useCallback(async (startPoint: string, endPoint: string) => {
-  console.log('Attempting to draw route from:', startPoint, 'to:', endPoint);
-  
-  // تنظيف المسار الحالي أولاً
-  clearRoute();
-  
-  if (!startPoint || !endPoint) {
-    console.error('Missing start or end point');
-    return;
-  }
-
- 
-  let startCoords, endCoords;
-  
-  // محاولة تحليل التنسيق المختلف
-  if (startPoint.includes(' ') && endPoint.includes(' ')) {
-    // إذا كان التنسيق "lat,lng lat,lng"
-    const points = startPoint.split(' ');
-    if (points.length === 2) {
-      startCoords = points[0].split(',');
-      endCoords = points[1].split(',');
-    } else {
-      console.error('Unexpected coordinate format with space:', startPoint);
+    console.log('Attempting to draw route from:', startPoint, 'to:', endPoint);
+    
+    // تنظيف المسار الحالي أولاً
+    clearRoute();
+    
+    if (!startPoint || !endPoint) {
+      console.error('Missing start or end point');
       return;
     }
-  } else {
-    // التنسيق الطبيعي "lat,lng"
-    startCoords = startPoint.split(',');
-    endCoords = endPoint.split(',');
-  }
-  
-  if (startCoords.length !== 2 || endCoords.length !== 2) {
-    console.error('Invalid coordinate format. Expected "lat,lng" or "lat,lng lat,lng"');
-    console.error('Start coords:', startCoords, 'End coords:', endCoords);
-    return;
-  }
 
-  const startLat = parseFloat(startCoords[0].trim());
-  const startLng = parseFloat(startCoords[1].trim());
-  const endLat = parseFloat(endCoords[0].trim());
-  const endLng = parseFloat(endCoords[1].trim());
-  
-  if (isNaN(startLat) || isNaN(startLng) || isNaN(endLat) || isNaN(endLng)) {
-    console.error('Invalid coordinates:', {startLat, startLng, endLat, endLng});
-    return;
-  }
-
-  console.log('Parsed coordinates:', {startLat, startLng, endLat, endLng});
-
-  try {
-    console.log('Fetching route from OSRM...');
-    const response = await fetch(
-      `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full`
-    );
+    let startCoords, endCoords;
     
-    if (!response.ok) {
-      throw new Error(`OSRM API error: ${response.status}`);
+    // محاولة تحليل التنسيق المختلف
+    if (startPoint.includes(' ') && endPoint.includes(' ')) {
+      // إذا كان التنسيق "lat,lng lat,lng"
+      const points = startPoint.split(' ');
+      if (points.length === 2) {
+        startCoords = points[0].split(',');
+        endCoords = points[1].split(',');
+      } else {
+        console.error('Unexpected coordinate format with space:', startPoint);
+        return;
+      }
+    } else {
+      // التنسيق الطبيعي "lat,lng"
+      startCoords = startPoint.split(',');
+      endCoords = endPoint.split(',');
     }
     
-    const data = await response.json();
-    console.log('OSRM response:', data);
+    if (startCoords.length !== 2 || endCoords.length !== 2) {
+      console.error('Invalid coordinate format. Expected "lat,lng" or "lat,lng lat,lng"');
+      console.error('Start coords:', startCoords, 'End coords:', endCoords);
+      return;
+    }
+
+    const startLat = parseFloat(startCoords[0].trim());
+    const startLng = parseFloat(startCoords[1].trim());
+    const endLat = parseFloat(endCoords[0].trim());
+    const endLng = parseFloat(endCoords[1].trim());
     
-    let coordinates: [number, number][] = [];
-    
-    if (data.code === 'Ok' && data.routes?.[0]) {
-      const route = data.routes[0];
+    if (isNaN(startLat) || isNaN(startLng) || isNaN(endLat) || isNaN(endLng)) {
+      console.error('Invalid coordinates:', {startLat, startLng, endLat, endLng});
+      return;
+    }
+
+    console.log('Parsed coordinates:', {startLat, startLng, endLat, endLng});
+
+    try {
+      console.log('Fetching route from OSRM...');
+      const response = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full`
+      );
       
-      if (typeof route.geometry === 'string') {
-        const decoded = decodePolyline(route.geometry);
-        coordinates = decoded.map(point => [point.lat, point.lng]);
-      } else if (route.geometry?.coordinates) {
-        coordinates = route.geometry.coordinates.map((coord: number[]) => [coord[1], coord[0]]);
+      if (!response.ok) {
+        throw new Error(`OSRM API error: ${response.status}`);
       }
       
-      console.log('Route calculated with', coordinates.length, 'points');
-    }
-    
-    if (coordinates.length === 0) {
-      console.log('Using straight line as fallback');
-      coordinates = [
+      const data = await response.json();
+      console.log('OSRM response:', data);
+      
+      let coordinates: [number, number][] = [];
+      
+      if (data.code === 'Ok' && data.routes?.[0]) {
+        const route = data.routes[0];
+        
+        if (typeof route.geometry === 'string') {
+          const decoded = decodePolyline(route.geometry);
+          coordinates = decoded.map(point => [point.lat, point.lng]);
+        } else if (route.geometry?.coordinates) {
+          coordinates = route.geometry.coordinates.map((coord: number[]) => [coord[1], coord[0]]);
+        }
+        
+        console.log('Route calculated with', coordinates.length, 'points');
+      }
+      
+      if (coordinates.length === 0) {
+        console.log('Using straight line as fallback');
+        coordinates = [
+          [startLat, startLng],
+          [endLat, endLng]
+        ];
+      }
+      
+      setRoutePoints(coordinates);
+      
+      // استخدام أيقونات مؤقتة إذا لم تكن الأيقونات الرئيسية جاهزة
+      let redIconToUse = icons.redIcon;
+      let greenIconToUse = icons.greenIcon;
+      
+      if (!redIconToUse) {
+        redIconToUse = await createCustomIcon('red');
+      }
+      if (!greenIconToUse) {
+        greenIconToUse = await createCustomIcon('green');
+      }
+      
+      setMarkers([
+        { 
+          position: [startLat, startLng], 
+          icon: redIconToUse,
+          popup: "نقطة الانطلاق"
+        },
+        { 
+          position: [endLat, endLng], 
+          icon: greenIconToUse,
+          popup: "نقطة الوصول"
+        }
+      ]);
+      
+      console.log('Route and markers set successfully');
+      
+    } catch (error) {
+      console.error('Error calculating route:', error);
+      // رسم خط مباشر كبديل في حالة الخطأ
+      setRoutePoints([
         [startLat, startLng],
         [endLat, endLng]
-      ];
-    }
-    
-    setRoutePoints(coordinates);
-    
-    // استخدام أيقونات مؤقتة إذا لم تكن الأيقونات الرئيسية جاهزة
-    let redIconToUse = icons.redIcon;
-    let greenIconToUse = icons.greenIcon;
-    
-    if (!redIconToUse) {
-      redIconToUse = await createCustomIcon('red');
-    }
-    if (!greenIconToUse) {
-      greenIconToUse = await createCustomIcon('green');
-    }
-    
-    setMarkers([
-      { 
-        position: [startLat, startLng], 
-        icon: redIconToUse,
-        popup: "نقطة الانطلاق"
-      },
-      { 
-        position: [endLat, endLng], 
-        icon: greenIconToUse,
-        popup: "نقطة الوصول"
+      ]);
+      
+      let redIconToUse = icons.redIcon;
+      let greenIconToUse = icons.greenIcon;
+      
+      if (!redIconToUse) {
+        redIconToUse = await createCustomIcon('red');
       }
-    ]);
-    
-    console.log('Route and markers set successfully');
-    
-  } catch (error) {
-    console.error('Error calculating route:', error);
-    // رسم خط مباشر كبديل في حالة الخطأ
-    setRoutePoints([
-      [startLat, startLng],
-      [endLat, endLng]
-    ]);
-    
-    let redIconToUse = icons.redIcon;
-    let greenIconToUse = icons.greenIcon;
-    
-    if (!redIconToUse) {
-      redIconToUse = await createCustomIcon('red');
-    }
-    if (!greenIconToUse) {
-      greenIconToUse = await createCustomIcon('green');
-    }
-    
-    setMarkers([
-      { 
-        position: [startLat, startLng], 
-        icon: redIconToUse,
-        popup: "نقطة الانطلاق"
-      },
-      { 
-        position: [endLat, endLng], 
-        icon: greenIconToUse,
-        popup: "نقطة الوصول"
+      if (!greenIconToUse) {
+        greenIconToUse = await createCustomIcon('green');
       }
-    ]);
-    
-    console.log('Fallback straight line route set');
-  }
-}, [clearRoute, icons.redIcon, icons.greenIcon]);
+      
+      setMarkers([
+        { 
+          position: [startLat, startLng], 
+          icon: redIconToUse,
+          popup: "نقطة الانطلاق"
+        },
+        { 
+          position: [endLat, endLng], 
+          icon: greenIconToUse,
+          popup: "نقطة الوصول"
+        }
+      ]);
+      
+      console.log('Fallback straight line route set');
+    }
+  }, [clearRoute, icons.redIcon, icons.greenIcon]);
 
   const updateZoneRadius = useCallback((radius: number) => {
-  const newRadius = Math.max(0.2, Math.min(5, radius));
-  setZoneRadius(newRadius);
-  
-  const radiusInMeters = newRadius * 1000;
-  setCircleRadius(radiusInMeters);
+    const newRadius = Math.max(0.2, Math.min(5, radius));
+    setZoneRadius(newRadius);
+    
+    const radiusInMeters = newRadius * 1000;
+    setCircleRadius(radiusInMeters);
 
-  sendToKotlin("update_zone", newRadius.toFixed(1)); // رقم واحد بعد الفاصلة
-  
-  // تحديث نص نصف القطر في منتصف الدائرة
-  if (currentLocation) {
-    setRadiusText({
-      position: currentLocation,
-      text: `${newRadius.toFixed(1)} كم` // هنا أيضًا لتكون متسقة
-    });
-  }
-}, [currentLocation]);
-
-
-
-
-  
+    sendToKotlin("update_zone", newRadius.toFixed(1)); // رقم واحد بعد الفاصلة
+    
+    // تحديث نص نصف القطر في منتصف الدائرة
+    if (currentLocation) {
+      setRadiusText({
+        position: currentLocation,
+        text: `${newRadius.toFixed(1)} كم` // هنا أيضًا لتكون متسقة
+      });
+    }
+  }, [currentLocation]);
 
   const handleMyLocation = useCallback(() => {
     if (currentLocation && mapRef.current) {
@@ -649,15 +695,14 @@ const handleRefreshServices = useCallback(async () => {
             f_km:order.f_km,
             start_time:new Date().toISOString() ,
             status:order.status,
-             real_km:order.real_km,
-        real_min:order.real_min,
-        real_price:order.real_price,
-        real_street:order.real_street,
-        waiting_min:order.waiting_min,
-        end_time:order.end_time,
-        start_point:order.start_point,
-        end_point:order.end_point
-
+            real_km:order.real_km,
+            real_min:order.real_min,
+            real_price:order.real_price,
+            real_street:order.real_street,
+            waiting_min:order.waiting_min,
+            end_time:order.end_time,
+            start_point:order.start_point,
+            end_point:order.end_point
           });
           
           setShowOrderDetails(true);
@@ -709,13 +754,13 @@ const handleRefreshServices = useCallback(async () => {
       start_time: new Date().toISOString(),
       status:order.status,
       real_km:order.real_km,
-        real_min:order.real_min,
-        real_price:order.real_price,
-        real_street:order.real_street,
-        waiting_min:order.waiting_min,
-        end_time:order.end_time,
-        start_point:order.start_point,
-        end_point:order.end_point
+      real_min:order.real_min,
+      real_price:order.real_price,
+      real_street:order.real_street,
+      waiting_min:order.waiting_min,
+      end_time:order.end_time,
+      start_point:order.start_point,
+      end_point:order.end_point
     });
     
     setAcceptOrderStatus('idle');
@@ -726,402 +771,421 @@ const handleRefreshServices = useCallback(async () => {
     }
   }, [drawRoute]);
 
-
   ///الموافقة على الطلب
-const handleAcceptOrder = useCallback(async (status:string) => {
-  if (!selectedOrder) return;
+  const handleAcceptOrder = useCallback(async (status:string) => {
+    if (!selectedOrder) return;
 
-  setAcceptOrderStatus('loading');
-
-  try {
-    const result = await update_order_status(selectedOrder.id, captainId,status);
-    console.log(result)
-
-    if (result === 'success') {
-      setAcceptOrderStatus('success');
-      
-      // إرسال بيانات الطلب إلى Kotlin
-      const orderData = {
-        id: selectedOrder.id,
-        start_text: selectedOrder.start_text,
-        end_text: selectedOrder.end_text,
-        distance_km: selectedOrder.distance_km,
-        duration_min: selectedOrder.duration_min,
-        cost: selectedOrder.cost,
-        user_rate: selectedOrder.user_rate,
-        km_price:selectedOrder.km_price,
-        min_price:selectedOrder.min_price,
-        discount:selectedOrder.discount,
-        add1:selectedOrder.add1,
-        f_km:selectedOrder.f_km,
-        start_time:selectedOrder.start_time,
-        accept_time:new Date().toISOString(),
-        start_point:selectedOrder.start_point,
-        end_point:selectedOrder.end_point
-      };
-      
-      sendToKotlin("order_accepted", JSON.stringify(orderData));
-
-      //ايقاف زر استقبال الطلبات
-      setActive(false)
-      
-      setTimeout(() => {
-        setShowOrderDetails(false);
-        setAcceptOrderStatus('idle');
-        //clearRoute();
-        
-        // إظهار واجهة متابعة الطلب
-        setTrackingOrder(selectedOrder);
-        setShowOrderTracking(true);
-      }, 2000);
-    } else if (result === 'goodluck') {
-      setAcceptOrderStatus('goodluck');
-      setTimeout(() => {
-        setShowOrderDetails(false);
-        setAcceptOrderStatus('idle');
-        clearRoute();
-        setShowMessage(true);
-      }, 2000);
-    } else {
-      setAcceptOrderStatus('error');
-    }
-  } catch (error) {
-    console.error('Error accepting order:', error);
-    setAcceptOrderStatus('error');
-    
-  }
-}, [selectedOrder, captainId, clearRoute]);
-
-
-//تعديل حالة الطلب
-const handleNextStatus = useCallback(async (status: string) => {
-  if (!trackingOrder) return;
-
-  // حالة التحميل - إظهار مؤشر الانتظار
-  setAcceptOrderStatus('loading');
-
-  try {
-    if (status == "completed") {
-      sendToKotlin("stop_tracking_services", "0");
-      setShowOrderTracking(false);
-      sendToKotlin("order_status_update", JSON.stringify({
-        orderId: trackingOrder.id,
-        status: status,
-        date_time: new Date().toISOString() 
-      }));
-
-      clearRoute()
-      
-    }
-
-    // إرسال حالة الطلب الجديدة إلى السيرفر مع مهلة زمنية
-    const result = await Promise.race([
-      update_order_status(trackingOrder.id, captainId, status),
-      new Promise((resolve) => setTimeout(() => resolve('timeout'), 10000)) // مهلة 10 ثواني
-    ]);
-
-    if (result === 'timeout') {
-      // إذا انتهت المهلة الزمنية
-      setAcceptOrderStatus('error');
-      throw new Error('فشل في تحديث الحالة. يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى.');
-    }
-
-    if (result === 'success') {
-      // إرسال الطلب لكوتلن
-      sendToKotlin("order_status_update", JSON.stringify({
-        orderId: trackingOrder.id,
-        status: status,
-        date_time: new Date().toISOString() 
-      }));
-      
-      if (status == "completed") {
-        sendToKotlin("delete_order_finish", "0");
-      }
-      
-      console.log(`تم تحديث حالة الطلب ${trackingOrder.id} إلى ${status} بنجاح`);
-      setAcceptOrderStatus('success');
-      
-      // إخفاء مؤشر الانتظار بعد نجاح العملية
-      setTimeout(() => {
-        setAcceptOrderStatus('idle');
-      }, 2000);
-    } else {
-      console.error('فشل في تحديث حالة الطلب في السيرفر');
-      setAcceptOrderStatus('error');
-      throw new Error('فشل في تحديث الحالة. يرجى المحاولة مرة أخرى.');
-    }
-  } catch (error) {
-    console.error('خطأ أثناء تحديث حالة الطلب:', error);
-    setAcceptOrderStatus('error');
-    throw error; // إعادة رفع الخطأ ليتم التعامل معه في المكون الفرعي
-  }
-}, [trackingOrder, captainId]);
-
-///عرض الطلب المفتوح بعد اعادة تشغيل التطبيق
-useEffect(() => {
-  // طلب التحقق من الطلبات المفتوحة من Kotlin
-  const checkForOpenOrder = () => {
-    sendToKotlin("check_open_order", "");
-  };
-
-  // تعريف دالة استقبال الرد من Kotlin
-  window.handleOpenOrderResponse = (response: string) => {
-    console.log('Open order response:', response);
-    
-    if (response !== "no_open_order") {
-      try {
-        // محاولة تحليل الرد كمصفوفة أولاً
-        const orderDataArray = JSON.parse(response);
-        let orderData: KotlinOrderData | null = null;
-        
-        if (Array.isArray(orderDataArray) && orderDataArray.length > 0) {
-          // أخذ أول عنصر في المصفوفة
-          orderData = orderDataArray[0];
-        } else if (typeof orderDataArray === 'object' && orderDataArray !== null) {
-          // إذا كان كائنًا وليس مصفوفة
-          orderData = orderDataArray;
-        }
-        
-        if (orderData && typeof orderData.id === 'number') {
-          if (orderData.status === "completed") {
-            // عرض واجهة الطلب المكتمل
-            setCompletedOrderData({
-              order: orderData,
-              real_km: orderData.real_km || "0",
-              real_min: orderData.real_min || "0", 
-              real_price: orderData.real_price || "0",
-              end_time: orderData.end_time || new Date().toISOString()
-            });
-          } else {
-            handleOpenOrder(orderData);
-          }
-        }
-      } catch (error) {
-        console.error('Error parsing open order data:', error);
-      }
-    } else {
-      console.log('No open orders found');
-    }
-  };
-
-  // التحقق من وجود طلب مفتوح عند تحميل التطبيق
-  checkForOpenOrder();
-
-  return () => {
-    window.handleOpenOrderResponse = () => {};
-  };
-}, []);
-
-//عرض رسالة متابعة الطلب المكتمل وغير مرسل للسيرفر
-const handleSubmitCompletedOrder = useCallback(async () => {
-  if (!completedOrderData) return;
-
-  try {
     setAcceptOrderStatus('loading');
-    
-    // إرسال تحديث الحالة للسيرفر
-    const result = await update_order_status(
-      completedOrderData.order.id, 
-      captainId, 
-      "completed"
-    );
 
-    if (result === 'success') {
-      // إرسال البيانات إلى Kotlin
-      sendToKotlin("order_status_update", JSON.stringify({
-        orderId: completedOrderData.order.id,
-        status: "completed",
-        date_time: completedOrderData.end_time,
-        real_km: completedOrderData.real_km,
-        real_min: completedOrderData.real_min,
-        real_price: completedOrderData.real_price
-      }));
+    try {
+      const result = await update_order_status(selectedOrder.id, captainId,status);
+      console.log(result)
 
-      sendToKotlin("delete_order_finish", "0");
-      
-      setAcceptOrderStatus('success');
-      setCompletedOrderData(null);
+      if (result === 'success') {
+        setAcceptOrderStatus('success');
+        
+        // إرسال بيانات الطلب إلى Kotlin
+        const orderData = {
+          id: selectedOrder.id,
+          start_text: selectedOrder.start_text,
+          end_text: selectedOrder.end_text,
+          distance_km: selectedOrder.distance_km,
+          duration_min: selectedOrder.duration_min,
+          cost: selectedOrder.cost,
+          user_rate: selectedOrder.user_rate,
+          km_price:selectedOrder.km_price,
+          min_price:selectedOrder.min_price,
+          discount:selectedOrder.discount,
+          add1:selectedOrder.add1,
+          f_km:selectedOrder.f_km,
+          start_time:selectedOrder.start_time,
+          accept_time:new Date().toISOString(),
+          start_point:selectedOrder.start_point,
+          end_point:selectedOrder.end_point
+        };
+        
+        sendToKotlin("order_accepted", JSON.stringify(orderData));
 
-      clearRoute()
-      
-      setTimeout(() => {
-        setAcceptOrderStatus('idle');
-      }, 2000);
-
-
-    } else {
+        //ايقاف زر استقبال الطلبات
+        setActive(false)
+        
+        setTimeout(() => {
+          setShowOrderDetails(false);
+          setAcceptOrderStatus('idle');
+          
+          // إظهار واجهة متابعة الطلب
+          setTrackingOrder(selectedOrder);
+          setShowOrderTracking(true);
+          
+          // بدء تتبع المسار
+          sendToKotlin("start_route_tracking", selectedOrder.id.toString());
+        }, 2000);
+      } else if (result === 'goodluck') {
+        setAcceptOrderStatus('goodluck');
+        setTimeout(() => {
+          setShowOrderDetails(false);
+          setAcceptOrderStatus('idle');
+          clearRoute();
+          setShowMessage(true);
+        }, 2000);
+      } else {
+        setAcceptOrderStatus('error');
+      }
+    } catch (error) {
+      console.error('Error accepting order:', error);
       setAcceptOrderStatus('error');
-      alert('فشل في إرسال التحديث. يرجى المحاولة مرة أخرى.');
     }
-  } catch (error) {
-    console.error('Error submitting completed order:', error);
-    setAcceptOrderStatus('error');
-    
-  }
-}, [completedOrderData, captainId]);
+  }, [selectedOrder, captainId, clearRoute]);
 
+  // إضافة دالة لإنهاء تتبع المسار
+  const stopRouteTracking = useCallback(() => {
+    setActiveRoute(null);
+    // إرسال أمر إيقاف التتبع إلى Kotlin
+    sendToKotlin("stop_route_tracking", "");
+  }, []);
 
+  //تعديل حالة الطلب
+  const handleNextStatus = useCallback(async (status: string) => {
+    if (!trackingOrder) return;
 
-// تطوير دالة handleOpenOrder لمعالجة البيانات الكاملة
+    // حالة التحميل - إظهار مؤشر الانتظار
+    setAcceptOrderStatus('loading');
 
-const handleOpenOrder = useCallback((orderData: KotlinOrderData) => {
+    try {
+      if (status == "completed") {
+        // إيقاف تتبع المسار
+        stopRouteTracking();
+        sendToKotlin("stop_tracking_services", "0");
+        setShowOrderTracking(false);
+        sendToKotlin("order_status_update", JSON.stringify({
+          orderId: trackingOrder.id,
+          status: status,
+          date_time: new Date().toISOString() 
+        }));
+
+        clearRoute()
+      }
+
+      // إرسال حالة الطلب الجديدة إلى السيرفر مع مهلة زمنية
+      const result = await Promise.race([
+        update_order_status(trackingOrder.id, captainId, status),
+        new Promise((resolve) => setTimeout(() => resolve('timeout'), 10000)) // مهلة 10 ثواني
+      ]);
+
+      if (result === 'timeout') {
+        // إذا انتهت المهلة الزمنية
+        setAcceptOrderStatus('error');
+        throw new Error('فشل في تحديث الحالة. يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى.');
+      }
+
+      if (result === 'success') {
+        // إرسال الطلب لكوتلن
+        sendToKotlin("order_status_update", JSON.stringify({
+          orderId: trackingOrder.id,
+          status: status,
+          date_time: new Date().toISOString() 
+        }));
+        
+        if (status == "completed") {
+          sendToKotlin("delete_order_finish", "0");
+        }
+        
+        console.log(`تم تحديث حالة الطلب ${trackingOrder.id} إلى ${status} بنجاح`);
+        setAcceptOrderStatus('success');
+        
+        // إخفاء مؤشر الانتظار بعد نجاح العملية
+        setTimeout(() => {
+          setAcceptOrderStatus('idle');
+        }, 2000);
+      } else {
+        console.error('فشل في تحديث حالة الطلب في السيرفر');
+        setAcceptOrderStatus('error');
+        throw new Error('فشل في تحديث الحالة. يرجى المحاولة مرة أخرى.');
+      }
+    } catch (error) {
+      console.error('خطأ أثناء تحديث حالة الطلب:', error);
+      setAcceptOrderStatus('error');
+      throw error; // إعادة رفع الخطأ ليتم التعامل معه في المكون الفرعي
+    }
+  }, [trackingOrder, captainId, stopRouteTracking]);
+
+  ///عرض الطلب المفتوح بعد اعادة تشغيل التطبيق
+  useEffect(() => {
+    // طلب التحقق من الطلبات المفتوحة من Kotlin
+    const checkForOpenOrder = () => {
+      sendToKotlin("check_open_order", "");
+    };
+
+    // تعريف دالة استقبال الرد من Kotlin
+    window.handleOpenOrderResponse = (response: string) => {
+      console.log('Open order response:', response);
+      
+      if (response !== "no_open_order") {
+        try {
+          // محاولة تحليل الرد كمصفوفة أولاً
+          const orderDataArray = JSON.parse(response);
+          let orderData: KotlinOrderData | null = null;
+          
+          if (Array.isArray(orderDataArray) && orderDataArray.length > 0) {
+            // أخذ أول عنصر في المصفوفة
+            orderData = orderDataArray[0];
+          } else if (typeof orderDataArray === 'object' && orderDataArray !== null) {
+            // إذا كان كائنًا وليس مصفوفة
+            orderData = orderDataArray;
+          }
+          
+          if (orderData && typeof orderData.id === 'number') {
+            if (orderData.status === "completed") {
+              // عرض واجهة الطلب المكتمل
+              setCompletedOrderData({
+                order: orderData,
+                real_km: orderData.real_km || "0",
+                real_min: orderData.real_min || "0", 
+                real_price: orderData.real_price || "0",
+                end_time: orderData.end_time || new Date().toISOString()
+              });
+            } else {
+              handleOpenOrder(orderData);
+            }
+          }
+        } catch (error) {
+          console.error('Error parsing open order data:', error);
+        }
+      } else {
+        console.log('No open orders found');
+      }
+    };
+
+    // التحقق من وجود طلب مفتوح عند تحميل التطبيق
+    checkForOpenOrder();
+
+    return () => {
+      window.handleOpenOrderResponse = () => {};
+    };
+  }, []);
+
+  //عرض رسالة متابعة الطلب المكتمل وغير مرسل للسيرفر
+  const handleSubmitCompletedOrder = useCallback(async () => {
+    if (!completedOrderData) return;
+
+    try {
+      setAcceptOrderStatus('loading');
+      
+      // إرسال تحديث الحالة للسيرفر
+      const result = await update_order_status(
+        completedOrderData.order.id, 
+        captainId, 
+        "completed"
+      );
+
+      if (result === 'success') {
+        // إرسال البيانات إلى Kotlin
+        sendToKotlin("order_status_update", JSON.stringify({
+          orderId: completedOrderData.order.id,
+          status: "completed",
+          date_time: completedOrderData.end_time,
+          real_km: completedOrderData.real_km,
+          real_min: completedOrderData.real_min,
+          real_price: completedOrderData.real_price
+        }));
+
+        sendToKotlin("delete_order_finish", "0");
+        
+        setAcceptOrderStatus('success');
+        setCompletedOrderData(null);
+
+        clearRoute()
+        
+        setTimeout(() => {
+          setAcceptOrderStatus('idle');
+        }, 2000);
+      } else {
+        setAcceptOrderStatus('error');
+        alert('فشل في إرسال التحديث. يرجى المحاولة مرة أخرى.');
+      }
+    } catch (error) {
+      console.error('Error submitting completed order:', error);
+      setAcceptOrderStatus('error');
+    }
+  }, [completedOrderData, captainId]);
+
+  // تطوير دالة handleOpenOrder لمعالجة البيانات الكاملة
+  const handleOpenOrder = useCallback((orderData: KotlinOrderData) => {
     console.log('Received open order:', orderData);
     
     // إنشاء كائن الطلب مع جميع البيانات
     const trackingOrderData: OrderDetails = {
-        id: orderData.id,
-        ser_chi_id: orderData.ser_chi_id || 0,
-        start_text: orderData.start_text || '',
-        end_text: orderData.end_text || '',
-        distance_km: orderData.distance_km || '0.0',
-        duration_min: typeof orderData.duration_min === 'string' 
-            ? parseInt(orderData.duration_min) || 0 
-            : orderData.duration_min || 0,
-        cost: orderData.cost || '0.0',
-        user_rate: typeof orderData.user_rate === 'string' 
-            ? parseInt(orderData.user_rate) || 0 
-            : orderData.user_rate || 0,
-        start_detlis: orderData.start_detlis || '',
-        end_detlis: orderData.end_detlis || '',
-        notes: orderData.notes || 'لا توجد ملاحظات',
-        km_price: orderData.km_price || '0.0',
-        min_price: orderData.min_price || '0.0',
-        discount: orderData.discount || '0',
-        add1: orderData.add1 || '0.0',
-        f_km: orderData.f_km || '0.0',
-        start_time: orderData.start_time || new Date().toISOString(),
-        status: orderData.status || 'arrived',
-        real_km: orderData.real_km,
-        real_min: orderData.real_min,
-        real_price: orderData.real_price,
-        real_street: orderData.real_street,
-        waiting_min: orderData.waiting_min,
-        end_time: orderData.end_time,
-        start_point: orderData.start_point || "",
-        end_point: orderData.end_point || ""
+      id: orderData.id,
+      ser_chi_id: orderData.ser_chi_id || 0,
+      start_text: orderData.start_text || '',
+      end_text: orderData.end_text || '',
+      distance_km: orderData.distance_km || '0.0',
+      duration_min: typeof orderData.duration_min === 'string' 
+          ? parseInt(orderData.duration_min) || 0 
+          : orderData.duration_min || 0,
+      cost: orderData.cost || '0.0',
+      user_rate: typeof orderData.user_rate === 'string' 
+          ? parseInt(orderData.user_rate) || 0 
+          : orderData.user_rate || 0,
+      start_detlis: orderData.start_detlis || '',
+      end_detlis: orderData.end_detlis || '',
+      notes: orderData.notes || 'لا توجد ملاحظات',
+      km_price: orderData.km_price || '0.0',
+      min_price: orderData.min_price || '0.0',
+      discount: orderData.discount || '0',
+      add1: orderData.add1 || '0.0',
+      f_km: orderData.f_km || '0.0',
+      start_time: orderData.start_time || new Date().toISOString(),
+      status: orderData.status || 'arrived',
+      real_km: orderData.real_km,
+      real_min: orderData.real_min,
+      real_price: orderData.real_price,
+      real_street: orderData.real_street,
+      waiting_min: orderData.waiting_min,
+      end_time: orderData.end_time,
+      start_point: orderData.start_point || "",
+      end_point: orderData.end_point || ""
     };
     
     // تعيين حالة التتبع - استخدام حالة الطلب من Kotlin إذا كانت متوفرة
     setTrackingOrder(trackingOrderData);
     setShowOrderTracking(true);
     
+    // بدء تتبع المسار إذا كانت هناك بيانات موقع
+    if (orderData.current_lat && orderData.current_lng) {
+      const initialPoint: Position = [orderData.current_lat, orderData.current_lng];
+      setActiveRoute({
+        orderId: orderData.id,
+        points: [initialPoint]
+      });
+      
+      // تحديث موقع السيارة
+      if (icons.carIcon) {
+        setCarMarker({
+          position: initialPoint,
+          icon: icons.carIcon
+        });
+      }
+    }
+    
     // إذا كانت هناك نقاط طريق، رسم المسار
     if (orderData.start_point && orderData.end_point) {
-        console.log('Drawing route for open order:', orderData.start_point, orderData.end_point);
-        drawRoute(orderData.start_point, orderData.end_point);
+      console.log('Drawing route for open order:', orderData.start_point, orderData.end_point);
+      drawRoute(orderData.start_point, orderData.end_point);
     } else {
-        console.warn('Missing start_point or end_point in open order data');
+      console.warn('Missing start_point or end_point in open order data');
     }
     
     // إرسال حالة الطلب إلى Kotlin للتأكد من المزامنة
     sendToKotlin("order_tracking_started", JSON.stringify({
-        orderId: orderData.id,
-        status: orderData.status || 'unknown'
+      orderId: orderData.id,
+      status: orderData.status || 'unknown'
     }));
-}, [drawRoute]); // أضف drawRoute كتبعية
+  }, [drawRoute, icons.carIcon]);
 
-//فتح الطريق في yandex
-const handleOpenYandex = useCallback(() => {
-  if (trackingOrder && trackingOrder.start_point && trackingOrder.end_point) {
-    const yandexData = {
-      start_point: trackingOrder.start_point,
-      end_point: trackingOrder.end_point
-    };
-    sendToKotlin("open_yandex", JSON.stringify(yandexData));
-  } else {
-    toast.error("لا توجد إحداثيات متاحة لفتح Yandex");
-  }
-}, [trackingOrder]);
-
-//الاتصال بالزبون
-const handleCallCustomer = useCallback(() => {
-  if (trackingOrder) {
-    sendToKotlin("call_customer", trackingOrder.id.toString());
-  }
-}, [trackingOrder]);
-
-//نكز
-const handlePokeCustomer = useCallback(() => {
-  if (trackingOrder) {
-    sendToKotlin("poke_customer", trackingOrder.id.toString());
-  }
-}, [trackingOrder]);
-//الاتصال بالشركة
-const handleCallCompany = useCallback(() => {
-  sendToKotlin("call_company", "");
-}, []);
-//الاتصال بالطوارئ
-const handleCallEmergency = useCallback(() => {
-  sendToKotlin("call_emergency", "");
-}, []);
-
-///استقبال بيانات متابعة الرحلة من كوتلن
-useEffect(() => {
-  window.update_cost = (km: string, min: string, cost: string) => {
-    console.log('Received cost data:', { km, min, cost });
-    
-    setTrackingData({
-      distance: km,
-      time: min,
-      price: cost
-    });
-    
-    if (trackingOrder) {
-      setTrackingOrder(prev => prev ? {
-        ...prev,
-        distance_km: km,
-        duration_min: parseInt(min) || 0,
-        cost: cost
-      } : null);
+  //فتح الطريق في yandex
+  const handleOpenYandex = useCallback(() => {
+    if (trackingOrder && trackingOrder.start_point && trackingOrder.end_point) {
+      const yandexData = {
+        start_point: trackingOrder.start_point,
+        end_point: trackingOrder.end_point
+      };
+      sendToKotlin("open_yandex", JSON.stringify(yandexData));
+    } else {
+      toast.error("لا توجد إحداثيات متاحة لفتح Yandex");
     }
-  };
+  }, [trackingOrder]);
 
-  return () => {
-    window.update_cost = undefined;
-  };
-}, [trackingOrder]);
+  //الاتصال بالزبون
+  const handleCallCustomer = useCallback(() => {
+    if (trackingOrder) {
+      sendToKotlin("call_customer", trackingOrder.id.toString());
+    }
+  }, [trackingOrder]);
 
-//ايقاف زر نشط 
-// داخل useEffect الرئيسي لإعداد الاستماع للأحداث
-useEffect(() => {
-  // تعريف دالة استقبال أمر إيقاف التتبع من Kotlin
-  window.handleStopTrackingButton = () => {
-    console.log('Received stop tracking button command from Android');
-    
-    // إيقاف حالة النشاط
-    setActive(false);
-    
-    // إخفاء واجهة تتبع الطلب إذا كانت مفتوحة
-    //setShowOrderTracking(false);
-    
-    // تنظيف المسار
-    clearRoute();
-    
+  //نكز
+  const handlePokeCustomer = useCallback(() => {
+    if (trackingOrder) {
+      sendToKotlin("poke_customer", trackingOrder.id.toString());
+    }
+  }, [trackingOrder]);
   
-  };
+  //الاتصال بالشركة
+  const handleCallCompany = useCallback(() => {
+    sendToKotlin("call_company", "");
+  }, []);
+  
+  //الاتصال بالطوارئ
+  const handleCallEmergency = useCallback(() => {
+    sendToKotlin("call_emergency", "");
+  }, []);
 
-  return () => {
-    window.handleStopTrackingButton = () => {};
-  };
-}, [clearRoute]);
+  ///استقبال بيانات متابعة الرحلة من كوتلن
+  useEffect(() => {
+    window.update_cost = (km: string, min: string, cost: string) => {
+      console.log('Received cost data:', { km, min, cost });
+      
+      setTrackingData({
+        distance: km,
+        time: min,
+        price: cost
+      });
+      
+      if (trackingOrder) {
+        setTrackingOrder(prev => prev ? {
+          ...prev,
+          distance_km: km,
+          duration_min: parseInt(min) || 0,
+          cost: cost
+        } : null);
+      }
+    };
+
+    return () => {
+      window.update_cost = undefined;
+    };
+  }, [trackingOrder]);
+
+  //ايقاف زر نشط 
+  // داخل useEffect الرئيسي لإعداد الاستماع للأحداث
+  useEffect(() => {
+    // تعريف دالة استقبال أمر إيقاف التتبع من Kotlin
+    window.handleStopTrackingButton = () => {
+      console.log('Received stop tracking button command from Android');
+      
+      // إيقاف حالة النشاط
+      setActive(false);
+      
+      // إيقاف تتبع المسار
+      stopRouteTracking();
+      
+      // تنظيف المسار
+      clearRoute();
+    };
+
+    return () => {
+      window.handleStopTrackingButton = () => {};
+    };
+  }, [clearRoute, stopRouteTracking]);
+
   //ايقاف او تشغيل الخدمات
   const handleServiceToggle = useCallback(async (service: Service) => {
-  const newActive = service.active === 1 ? 0 : 1;
-  const originalActive = service.active;
+    const newActive = service.active === 1 ? 0 : 1;
+    const originalActive = service.active;
 
-  setServices(prev => prev.map(s => 
-    s.id === service.id ? { ...s, active: newActive } : s
-  ));
-
-  try {
-    await updateServiceStatus(service.id, newActive, captainId);
-  } catch (error) {
     setServices(prev => prev.map(s => 
-      s.id === service.id ? { ...s, active: originalActive } : s
+      s.id === service.id ? { ...s, active: newActive } : s
     ));
-    console.error('Failed to update service:', error);
-  }
-}, [captainId]);
+
+    try {
+      await updateServiceStatus(service.id, newActive, captainId);
+    } catch (error) {
+      setServices(prev => prev.map(s => 
+        s.id === service.id ? { ...s, active: originalActive } : s
+      ));
+      console.error('Failed to update service:', error);
+    }
+  }, [captainId]);
 
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
@@ -1213,22 +1277,22 @@ useEffect(() => {
                 ref={mapRef}
               >
                 <MapComponent 
-  center={currentLocation || DEFAULT_POSITION}
-  zoom={mapZoom}
-  routePoints={routePoints}
-  markers={[
-    ...markers,
-    ...(carMarker ? [{
-      position: carMarker.position,
-      icon: carMarker.icon,
-      popup: "موقعك الحالي"
-    }] : [])
-  ]}
-  circleCenter={circleCenter}
-  circleRadius={circleRadius}
-  radiusText={radiusText} // أضف هذا السطر
-/>
-                
+                  center={currentLocation || DEFAULT_POSITION}
+                  zoom={mapZoom}
+                  routePoints={routePoints}
+                  markers={[
+                    ...markers,
+                    ...(carMarker ? [{
+                      position: carMarker.position,
+                      icon: carMarker.icon,
+                      popup: "موقعك الحالي"
+                    }] : [])
+                  ]}
+                  circleCenter={circleCenter}
+                  circleRadius={circleRadius}
+                  radiusText={radiusText}
+                  activeRoute={activeRoute ? activeRoute.points : []}
+                />
               </MapContainer>
             </Suspense>
           ) : (
@@ -1322,26 +1386,26 @@ useEffect(() => {
           />
         )}
 
-      {showServices && (
-  <DynamicServicesMenu
-    services={services}
-    isUpdatingService={isUpdatingService}
-    isRefreshing={isRefreshingServices}
-    onClose={() => setShowServices(false)}
-    onRefresh={handleRefreshServices}
-    onToggleService={handleServiceToggle}
-  />
-)}
+        {showServices && (
+          <DynamicServicesMenu
+            services={services}
+            isUpdatingService={isUpdatingService}
+            isRefreshing={isRefreshingServices}
+            onClose={() => setShowServices(false)}
+            onRefresh={handleRefreshServices}
+            onToggleService={handleServiceToggle}
+          />
+        )}
 
         {showLastOrders && (
-  <DynamicLastOrdersMenu
-    orders={lastorder}
-    isRefreshing={isRefreshingLastOrders}
-    onClose={() => setShowLastOrders(false)}
-    onRefresh={handleRefreshLastOrders}
-    onOrderClick={openOrderDetails}
-  />
-)}
+          <DynamicLastOrdersMenu
+            orders={lastorder}
+            isRefreshing={isRefreshingLastOrders}
+            onClose={() => setShowLastOrders(false)}
+            onRefresh={handleRefreshLastOrders}
+            onOrderClick={openOrderDetails}
+          />
+        )}
 
         {showOrderDetails && selectedOrder && (
           <OrderDetailsModal
@@ -1351,7 +1415,7 @@ useEffect(() => {
               setAcceptOrderStatus('idle');
               clearRoute();
             }}
-             onAccept={() => handleAcceptOrder("cap_accept")}
+            onAccept={() => handleAcceptOrder("cap_accept")}
             acceptStatus={acceptOrderStatus} 
           />
         )}
@@ -1360,87 +1424,90 @@ useEffect(() => {
           <BetterLuckMessage onClose={() => setShowMessage(false)} />
         )}
 
-  {showOrderTracking && trackingOrder && (
-  <div className="fixed bottom-0 left-0 right-0 z-50">
-    <OrderTrackingModal
-      order={trackingOrder}
-      trackingData={trackingData}
-      initialStatus={trackingOrder.status} // تمرير حالة الطلب من البيانات
-      onNextStatus={handleNextStatus}
-      onCallCustomer={handleCallCustomer}
-      onPokeCustomer={handlePokeCustomer}
-      onCallCompany={handleCallCompany}
-      onCallEmergency={handleCallEmergency}
-      onOpenYandex={handleOpenYandex}
-    />
-  </div>
-)}
+        {showOrderTracking && trackingOrder && (
+          <div className="fixed bottom-0 left-0 right-0 z-50">
+            <OrderTrackingModal
+              order={trackingOrder}
+              trackingData={trackingData}
+              initialStatus={trackingOrder.status} // تمرير حالة الطلب من البيانات
+              onNextStatus={handleNextStatus}
+              onCallCustomer={handleCallCustomer}
+              onPokeCustomer={handlePokeCustomer}
+              onCallCompany={handleCallCompany}
+              onCallEmergency={handleCallEmergency}
+              onOpenYandex={handleOpenYandex}
+              onStartRouteTracking={() => sendToKotlin("start_route_tracking", trackingOrder.id.toString())}
+              onPauseRouteTracking={() => sendToKotlin("pause_route_tracking", trackingOrder.id.toString())}
+              onStopRouteTracking={stopRouteTracking}
+            />
+          </div>
+        )}
 
-{/* واجهة ارسال الطلب المعلق */}
-{completedOrderData && (
-  <div className="absolute inset-0 flex items-center justify-center z-40 backdrop-blur-md" dir="rtl">
-    <div className="bg-white p-6 rounded-lg w-80 ">
-      <h2 className="text-xl font-bold mb-4 text-center">لم يتم إنهاء آخر طلب</h2>
-      
-      <div className="space-y-3 mb-4">
-        <div className="flex justify-between">
-          <span className="font-semibold">المسافة المقطوعة:</span>
-          <span>{completedOrderData.real_km} كم</span>
-        </div>
-        
-        <div className="flex justify-between">
-          <span className="font-semibold">الوقت المستغرق:</span>
-          <span>{completedOrderData.real_min} دقيقة</span>
-        </div>
-        
-        <div className="flex justify-between">
-          <span className="font-semibold">التكلفة النهائية:</span>
-          <span>{completedOrderData.real_price} ل.س</span>
-        </div>
-        
-        <div className="flex justify-between">
-          <span className="font-semibold">وقت الانتهاء:</span>
-          <span>
-            {new Date(completedOrderData.end_time).toLocaleDateString('en-GB', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
-          </span>
-        </div>
-      </div>
+        {/* واجهة ارسال الطلب المعلق */}
+        {completedOrderData && (
+          <div className="absolute inset-0 flex items-center justify-center z-40 backdrop-blur-md" dir="rtl">
+            <div className="bg-white p-6 rounded-lg w-80 ">
+              <h2 className="text-xl font-bold mb-4 text-center">لم يتم إنهاء آخر طلب</h2>
+              
+              <div className="space-y-3 mb-4">
+                <div className="flex justify-between">
+                  <span className="font-semibold">المسافة المقطوعة:</span>
+                  <span>{completedOrderData.real_km} كم</span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="font-semibold">الوقت المستغرق:</span>
+                  <span>{completedOrderData.real_min} دقيقة</span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="font-semibold">التكلفة النهائية:</span>
+                  <span>{completedOrderData.real_price} ل.س</span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="font-semibold">وقت الانتهاء:</span>
+                  <span>
+                    {new Date(completedOrderData.end_time).toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </span>
+                </div>
+              </div>
 
-      <div className="flex justify-between gap-3">
-        <button
-          onClick={() => setCompletedOrderData(null)}
-          className="flex-1 bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400"
-        >
-          إلغاء
-        </button>
-        
-        <button
-          onClick={handleSubmitCompletedOrder}
-          disabled={acceptOrderStatus === 'loading'}
-          className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center"
-        >
-          {acceptOrderStatus === 'loading' ? (
-            <div className="flex items-center">
-              <svg className="animate-spin h-5 w-5 ml-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              جاري الإرسال...
+              <div className="flex justify-between gap-3">
+                <button
+                  onClick={() => setCompletedOrderData(null)}
+                  className="flex-1 bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400"
+                >
+                  إلغاء
+                </button>
+                
+                <button
+                  onClick={handleSubmitCompletedOrder}
+                  disabled={acceptOrderStatus === 'loading'}
+                  className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center"
+                >
+                  {acceptOrderStatus === 'loading' ? (
+                    <div className="flex items-center">
+                      <svg className="animate-spin h-5 w-5 ml-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      جاري الإرسال...
+                    </div>
+                  ) : (
+                    'إرسال التحديث'
+                  )}
+                </button>
+              </div>
             </div>
-          ) : (
-            'إرسال التحديث'
-          )}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+          </div>
+        )}
 
         {showChangePassword && (
           <div className="absolute inset-0 flex items-center justify-center z-40 backdrop-blur-md">

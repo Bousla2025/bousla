@@ -163,6 +163,8 @@ export interface KotlinOrderData {
    real_street:string,
    waiting_min:string,
    end_time:string,
-   
+   current_lat?: number;
+  current_lng?: number;
+  route_points?: Position[]
   
 }

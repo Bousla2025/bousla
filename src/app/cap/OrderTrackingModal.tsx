@@ -38,6 +38,9 @@ interface OrderTrackingModalProps {
   onCallCompany: () => void;
   onCallEmergency: () => void;
    onOpenYandex: () => void;
+   onStartRouteTracking: () => void;
+  onPauseRouteTracking: () => void;
+  onStopRouteTracking: () => void;
 }
 
 const STATUS_STEPS = [
@@ -56,7 +59,10 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
   onPokeCustomer,
   onCallCompany,
   onCallEmergency,
-  onOpenYandex
+  onOpenYandex,
+  onStartRouteTracking,
+  onPauseRouteTracking,
+  onStopRouteTracking
 }) => {
   const [currentStatus, setCurrentStatus] = useState(initialStatus);
   const [isExpanded, setIsExpanded] = useState(true);

@@ -24,6 +24,7 @@ interface MapComponentProps {
   circleCenter?: Position;
   circleRadius?: number;
   radiusText?: {position: Position, text: string} | null;
+  activeRoute?: Position[]; // إضافة خاصية جديدة للمسار النشط
 }
 
 // مكون لعرض نص نصف القطر
@@ -64,6 +65,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   circleCenter,
   circleRadius,
   radiusText,
+  activeRoute = [], // قيمة افتراضية
 }) => {
   const [isClient, setIsClient] = useState(false);
   const [markerIcons, setMarkerIcons] = useState<{[key: string]: L.Icon}>({});
@@ -103,6 +105,16 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       .radius-tooltip::before {
         display: none !important;
       }
+      
+      .active-route {
+        animation: pulse 2s infinite;
+      }
+      
+      @keyframes pulse {
+        0% { opacity: 0.7; }
+        50% { opacity: 1; }
+        100% { opacity: 0.7; }
+      }
     `;
     document.head.appendChild(style);
 
@@ -122,6 +134,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       
       <MapUpdater center={center} zoom={zoom} />
       
+      {/* عرض المسار العادي */}
       {routePoints.length > 1 && (
         <Polyline 
           positions={routePoints}
@@ -131,6 +144,33 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           lineCap="round"
           lineJoin="round"
         />
+      )}
+      
+      {/* عرض المسار النشط إذا كان موجوداً */}
+      {activeRoute.length > 1 && (
+        <Polyline 
+          positions={activeRoute}
+          color="#FF0000" // لون مختلف للمسار النشط
+          weight={6}
+          opacity={0.9}
+          lineCap="round"
+          lineJoin="round"
+          className="active-route"
+        />
+      )}
+      
+      {/* عرض نقاط المسار النشط */}
+      {activeRoute.length > 0 && (
+        <CircleMarker
+          center={activeRoute[activeRoute.length - 1]} // آخر نقطة في المسار
+          radius={8}
+          color="#FF0000"
+          fillColor="#FFFFFF"
+          fillOpacity={1}
+          weight={2}
+        >
+          <Popup>آخر موقع مسجل</Popup>
+        </CircleMarker>
       )}
       
       {markers.map((marker, index) => (
@@ -156,7 +196,6 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         <RadiusText 
           position={radiusText.position} 
           text={radiusText.text} 
-          
         />
       )}
     </>
